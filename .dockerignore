@@ -1,0 +1,7 @@
+.git
+bin
+tmp
+vendor
+.env
+*.md
+.agent

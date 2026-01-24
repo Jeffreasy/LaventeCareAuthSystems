@@ -1,0 +1,20 @@
+version: "2"
+sql:
+  - schema: "migrations"
+    queries: "internal/storage/queries"
+    engine: "postgresql"
+    gen:
+      go:
+        package: "db"
+        out: "internal/storage/db"
+        sql_package: "pgx/v5"
+        # Type Overrides to match user's desired domain pointers
+        overrides:
+          - db_type: "jsonb"
+            go_type: "encoding/json.RawMessage"
+          - column: "tenants.branding"
+            go_type: "github.com/Jeffreasy/LaventeCareAuthSystems/internal/domain.TenantBranding"
+          - column: "tenants.settings"
+            go_type: "github.com/Jeffreasy/LaventeCareAuthSystems/internal/domain.TenantSettings"
+          - column: "refresh_tokens.ip_address"
+            go_type: "net.IP"

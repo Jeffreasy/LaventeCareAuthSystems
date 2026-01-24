@@ -1,0 +1,15 @@
+{
+    "name": "@lavente/auth-sdk",
+    "version": "1.0.0",
+    "description": "SDK for Lavente Care Auth System",
+    "main": "api_client.ts",
+    "scripts": {
+        "build": "tsc"
+    },
+    "dependencies": {
+        "axios": "^1.6.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.0.0"
+    }
+}

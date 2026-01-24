@@ -1,0 +1,43 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgres://user:password@db:5432/laventecare?sslmode=disable
+      - PORT=8080
+      # Add other environment variables here as needed
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+  worker:
+    build: .
+    command: [ "/app/worker" ]
+    environment:
+      - DATABASE_URL=postgres://user:password@db:5432/laventecare?sslmode=disable
+      - APP_ENV=development
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=laventecare
+    ports:
+      - "5488:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d laventecare" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
