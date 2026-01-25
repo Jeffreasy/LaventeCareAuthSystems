@@ -101,8 +101,8 @@ func (p *JWTProvider) GenerateAccessToken(userID uuid.UUID, tenantID uuid.UUID, 
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(p.tokenDuration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "laventecare-auth",
-			Audience:  jwt.ClaimStrings{"convex"}, // Critical for Convex logic
+			Issuer:    "https://laventecareauthsystems.onrender.com", // Must match Convex auth.config domain
+			Audience:  jwt.ClaimStrings{"convex"},                    // Critical for Convex logic
 		},
 	}
 
@@ -125,7 +125,7 @@ func (p *JWTProvider) GeneratePreAuthToken(userID uuid.UUID) (string, error) {
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(2 * time.Minute)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
-			Issuer:    "laventecare-auth",
+			Issuer:    "https://laventecareauthsystems.onrender.com",
 		},
 	}
 
