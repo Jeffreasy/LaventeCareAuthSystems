@@ -43,7 +43,7 @@ func (h *IoTHandler) HandleTelemetry(w http.ResponseWriter, r *http.Request) {
 		TempBle  *float64        `json:"tempBle,omitempty"`
 		Humidity *float64        `json:"humidity,omitempty"`
 		Battery  *int            `json:"battery,omitempty"`
-		Logs     json.RawMessage `json:"logs,omitempty"` // Pass through logs to Convex
+		Logs     interface{}     `json:"logs,omitempty"` // Accept any structure
 		Metadata json.RawMessage `json:"metadata,omitempty"`
 	}
 
