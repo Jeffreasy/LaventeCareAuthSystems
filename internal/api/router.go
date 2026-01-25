@@ -43,7 +43,7 @@ func NewServer(queries *db.Queries, authService *auth.AuthService, tokenProvider
 	limiter := customMiddleware.NewIPRateLimiter(5, 10) // 5 RPS, Burst 10
 	r.Use(limiter.Middleware)
 	r.Use(customMiddleware.TenantContext)
-	r.Use(customMiddleware.CSRFMiddleware) // Phase 15: Cookie Security
+	// CSRF moved to protected routes only (public auth endpoints don't need it)
 
 	// 5. Auth & RBAC Factories
 	// We create factories for use in specific routes
@@ -84,6 +84,7 @@ func NewServer(queries *db.Queries, authService *auth.AuthService, tokenProvider
 		// Protected Routes
 		r.Group(func(r chi.Router) {
 			r.Use(requireAuth)
+			r.Use(customMiddleware.CSRFMiddleware) // Apply CSRF to authenticated routes only
 
 			// Example: User Profile (Self)
 			r.Get("/me", authHandler.Me) // Updated to use handler method
