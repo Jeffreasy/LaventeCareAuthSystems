@@ -21,7 +21,7 @@ type Server struct {
 	Logger *slog.Logger
 }
 
-func NewServer(queries *db.Queries, authService *auth.AuthService, tokenProvider auth.TokenProvider) *Server {
+func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthService, tokenProvider auth.TokenProvider) *Server {
 	r := chi.NewRouter()
 
 	// 1. Core Middleware
@@ -36,13 +36,14 @@ func NewServer(queries *db.Queries, authService *auth.AuthService, tokenProvider
 
 	// 3. Logger & Recovery
 	r.Use(customMiddleware.RequestLogger) // Our custom slog logger
-	r.Use(customMiddleware.RequestLogger) // Our custom slog logger
 	r.Use(customMiddleware.PanicRecovery) // Custom recovery with Sentry support
 
 	// 4. Active Defense Middlewares
 	limiter := customMiddleware.NewIPRateLimiter(5, 10) // 5 RPS, Burst 10
 	r.Use(limiter.Middleware)
-	r.Use(customMiddleware.TenantContext)
+
+	// PHASE 50 RLS: TenantContext now requires pool for SET LOCAL transaction wrapping
+	r.Use(customMiddleware.TenantContext(pool))
 	// CSRF moved to protected routes only (public auth endpoints don't need it)
 
 	// 5. Auth & RBAC Factories
@@ -57,7 +58,7 @@ func NewServer(queries *db.Queries, authService *auth.AuthService, tokenProvider
 	server := &Server{
 		Router: r,
 		DB:     queries,
-		Pool:   nil, // Will be set by caller in main.go
+		Pool:   pool, // PHASE 50: Pool now set during initialization
 		Auth:   authService,
 		Logger: slog.Default(),
 	}

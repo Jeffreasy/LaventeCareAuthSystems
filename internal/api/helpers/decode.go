@@ -22,6 +22,11 @@ import (
 //	    return
 //	}
 func DecodeJSON(r *http.Request, v interface{}) error {
+	// Anti-Gravity Law 1: Input is Toxic. Enforce Content-Type.
+	if r.Header.Get("Content-Type") != "application/json" {
+		return fmt.Errorf("content-type must be application/json")
+	}
+
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields() // Anti-Gravity Law 1: Never trust input
 

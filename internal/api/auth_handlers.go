@@ -1,0 +1,187 @@
+package api
+
+import (
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"net/mail"
+	"unicode/utf8"
+
+	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/api/helpers"
+	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/auth"
+	"github.com/google/uuid"
+)
+
+// RegisterRequest defines the expected JSON body for registration.
+type RegisterRequest struct {
+	Email    string    `json:"email"`
+	Password string    `json:"password"`
+	FullName string    `json:"full_name"`
+	TenantID uuid.UUID `json:"tenant_id"`       // Optional
+	Token    string    `json:"token,omitempty"` // Invite Token
+}
+
+func (req *RegisterRequest) Validate() error {
+	if _, err := mail.ParseAddress(req.Email); err != nil {
+		return fmt.Errorf("invalid email format")
+	}
+	if utf8.RuneCountInString(req.Password) < 12 {
+		return fmt.Errorf("password must be at least 12 characters")
+	}
+	if len(req.FullName) > 100 {
+		return fmt.Errorf("full name too long (max 100 chars)")
+	}
+	return nil
+}
+
+func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	var req RegisterRequest
+	// Helpers now enforce Anti-Gravity Law 1 (Content-Type + DisallowUnknownFields)
+	if err := helpers.DecodeJSON(r, &req); err != nil {
+		slog.Warn("Register: Invalid Request", "error", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		slog.Warn("Register: Validation Failed", "error", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	input := auth.RegisterInput{
+		Email:    req.Email,
+		Password: req.Password,
+		FullName: req.FullName,
+		TenantID: req.TenantID,
+		Token:    req.Token,
+	}
+
+	user, err := h.service.Register(r.Context(), input)
+	if err != nil {
+		// Anti-Gravity Law 2: Silence is Golden. Log trace, return generic.
+		slog.Error("Register: Internal Error", "error", err)
+		http.Error(w, "Registration failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	// Don't return the full user model if it contains anything sensitive (though it shouldn't)
+	json.NewEncoder(w).Encode(user)
+}
+
+// LoginRequest defines the expected JSON body for login.
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (req *LoginRequest) Validate() error {
+	if req.Email == "" || req.Password == "" {
+		return fmt.Errorf("email and password required")
+	}
+	return nil
+}
+
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var req LoginRequest
+	if err := helpers.DecodeJSON(r, &req); err != nil {
+		slog.Warn("Login: Invalid Request", "error", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		slog.Warn("Login: Validation Failed", "error", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	input := auth.LoginInput{
+		Email:     req.Email,
+		Password:  req.Password,
+		IP:        helpers.GetRealIP(r),
+		UserAgent: r.UserAgent(),
+	}
+
+	result, err := h.service.Login(r.Context(), input)
+	if err != nil {
+		// Law 2: Silence is Golden. Do not reveal if user exists or password is wrong.
+		// Note: h.service.Login already returns generic ErrInvalidCredentials, but we log here.
+		slog.Warn("Login: Failed Attempt", "email", req.Email, "error", err)
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
+// Refresh Token (Silent Refresh)
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	// 1. Get Cookie
+	cookie, err := r.Cookie("refresh_token")
+	if err != nil {
+		http.Error(w, "No session", http.StatusUnauthorized)
+		return
+	}
+
+	// 2. Metadata
+	ip := helpers.GetRealIP(r)
+	ua := r.UserAgent()
+
+	// 3. Call Service
+	result, err := h.service.RefreshSession(r.Context(), cookie.Value, ip, ua)
+	if err != nil {
+		// Log warning (possible reuse attack)
+		slog.Warn("Refresh failed", "error", err)
+		// Clear cookies on failure to force re-login
+		h.clearCookies(w)
+		http.Error(w, "Refresh failed", http.StatusUnauthorized)
+		return
+	}
+
+	// 4. Set New Cookies
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    result.AccessToken,
+		Path:     "/",
+		MaxAge:   900, // 15 min
+		HttpOnly: true,
+		Secure:   true, // TODO: Config driven
+		SameSite: http.SameSiteStrictMode,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    result.RefreshToken,
+		Path:     "/api/v1/auth",
+		MaxAge:   604800, // 7 days
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	// 5. Return Access Token (for memory client)
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	// 1. Get Refresh Token from Cookie
+	cookie, err := r.Cookie("refresh_token")
+	if err != nil {
+		// Already logged out or no session
+		h.clearCookies(w)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 2. Revoke in DB (Fire & Forget)
+	_ = h.service.Logout(r.Context(), cookie.Value)
+
+	// 3. Clear Cookies
+	h.clearCookies(w)
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Logged out"})
+}

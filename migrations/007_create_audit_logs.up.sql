@@ -26,3 +26,13 @@ CREATE INDEX idx_audit_logs_timestamp ON audit_logs(timestamp DESC);
 CREATE INDEX idx_audit_logs_actor_id ON audit_logs(actor_id);
 CREATE INDEX idx_audit_logs_tenant_id ON audit_logs(tenant_id);
 CREATE INDEX idx_audit_logs_action ON audit_logs(action);
+
+-- 🔒 APPEND-ONLY ENFORCEMENT (Anti-Gravity Law 4: Integriteit & Verantwoording)
+-- Revoke UPDATE and DELETE permissions to guarantee immutability at the database level.
+-- Only INSERT and SELECT are permitted on this table.
+-- This prevents even privileged application bugs from tampering with audit history.
+REVOKE UPDATE, DELETE ON audit_logs FROM PUBLIC;
+REVOKE UPDATE, DELETE ON audit_logs FROM "user"; -- Default postgres user (see docker-compose.yml)
+
+-- If using a dedicated app_user in production, also revoke for that role:
+-- REVOKE UPDATE, DELETE ON audit_logs FROM app_user;

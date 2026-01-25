@@ -57,6 +57,32 @@ The application is configured via Environment Variables. In production, these **
 
 ---
 
+## 🛡️ Core Security Domains
+
+Before diving into code, understand the 4 foundational pillars that make LaventeCare Auth Systems enterprise-grade:
+
+### 1. Identiteitsbeheer (Identity Management)
+**What it does:** Securely stores and verifies user identities using battle-tested cryptography.
+- **Features**: Bcrypt password hashing (cost 12), JWT Access Tokens (15min lifespan), Refresh Token rotation, Multi-Factor Authentication (TOTP + backup codes), Email verification & password reset flows.
+- **Why it matters:** Prevents credential stuffing, password reuse attacks, and ensures only verified identities can access resources.
+
+### 2. Strict Isolation (Multi-Tenancy)
+**What it does:** Guarantees that data from different clients/projects is logically separated at the database level.
+- **Features**: Every resource belongs to a `tenant`. Users can be members of multiple tenants via the `memberships` table. All queries enforce `tenant_id` filtering. Future: Native PostgreSQL Row Level Security (RLS).
+- **Why it matters:** Prevents cross-tenant data leaks (IDOR vulnerabilities) even if application logic has bugs.
+
+### 3. Toegangscontrole (RBAC - Role-Based Access Control)
+**What it does:** Fine-grained permission management based on user roles.
+- **Features**: 3 roles (`admin`, `editor`, `viewer`) with hierarchical permissions. Role is embedded in JWT claims for zero-latency checks (no database query needed). Middleware enforces role requirements per endpoint.
+- **Why it matters:** Ensures users can only perform actions appropriate to their role (principle of least privilege).
+
+### 4. Integriteit & Verantwoording (Audit Logging)
+**What it does:** Immutably records every critical action in the system.
+- **Features**: Append-only `audit_logs` table with database-level UPDATE/DELETE revocation. Captures actor, action, target, IP, user agent, and metadata. Indexed for fast queries by tenant, user, or action type.
+- **Why it matters:** Enables forensic analysis, compliance reporting (GDPR/SOC2), and non-repudiation of actions.
+
+---
+
 ## 🐳 Docker Architecture
 
 We use `docker-compose.yml` to orchestrate dependencies.

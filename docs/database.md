@@ -47,6 +47,20 @@ The schema is designed for multi-tenancy and strict isolation.
     - Pre-registration access tokens.
     - Fields: `email`, `role`, `tenant_id`, `token_hash`, `expires_at`.
 
+8. **Audit Logs (`audit_logs`)**
+    - **Append-only** immutable security event log (Core Domain #4: Integriteit & Verantwoording).
+    - **Purpose**: Onweerlegbaar vastleggen van alle kritieke acties binnen het systeem.
+    - **Key Fields**:
+        - `actor_id`: Who performed the action (User UUID, nullable for system events).
+        - `session_id`: Link to session context (refresh token family).
+        - `tenant_id`: Tenant scope for multi-tenancy isolation.
+        - `action`: Event type (e.g., `auth.login`, `user.delete`, `tenant.modify`).
+        - `target_id`: Resource UUID affected by the action.
+        - `metadata`: JSONB column for contextual details (diffs, original values, etc.).
+        - `ip_address`, `user_agent`, `request_id`: Request correlation data.
+    - **Indices**: Optimized for queries by `timestamp DESC`, `actor_id`, `tenant_id`, `action`.
+    - **Security**: Database-level constraints prevent UPDATE/DELETE operations (see Migration 007).
+
 ---
 
 ## 🛡️ SQLC & Type Safety
@@ -84,4 +98,14 @@ Every query targeting tenant-specific data **MUST** include a `tenant_id` WHERE 
 - **Correct**: `WHERE user_id = $1 AND tenant_id = $2`
 - **Incorrect**: `WHERE user_id = $1` (This creates an IDOR vulnerability)
 
-*Note: In the future, we may enable Postgres Native RLS for defense-in-depth.*
+### Future: Native Row Level Security (RLS)
+**Roadmap Target: Phase 50 (Q2 2026)**
+
+We **will** enable PostgreSQL Native Row Level Security (RLS) as a defense-in-depth measure. This ensures that even if application-level tenant filtering is bypassed due to a bug, the database itself enforces isolation at the row level.
+
+**Implementation Plan:**
+- Apply RLS policies to `memberships`, `refresh_tokens`, `invitations`, and all tenant-scoped resources.
+- Policies will validate `current_setting('app.tenant_id')` against row-level `tenant_id`.
+- Application sets session variable via `SET LOCAL app.tenant_id = $1` in transaction context.
+
+*This is not optional. Multi-tenancy at the application layer alone is insufficient for Zero Trust compliance.*

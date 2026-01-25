@@ -43,7 +43,7 @@ This system is built by the rules of the **Anti-Gravity Sentinel**. We assume ho
 - **Handlers:** Stateless functions that parse input -> call service -> render response.
 
 ### 2. Domain Logic (`internal/auth`)
-- **Service Layer:** Contains the business rules (e.g., "Password must be 12 chars", "Check Tenant ID").
+- **Service Layer:** Modularized domain services (`login_service.go`, `registration_service.go`, etc.) containing business rules.
 - **Dependencies:** Injected via interfaces or pointers (`*db.Queries`, `Hasher`, `TokenProvider`).
 - **Cryptography:**
   - **Hashing:** Bcrypt with calibrated cost.
@@ -78,7 +78,7 @@ This system is built by the rules of the **Anti-Gravity Sentinel**. We assume ho
 │   └── worker/             # Background Janitor service.
 ├── internal/
 │   ├── api/                # HTTP Handlers, Router, Middleware.
-│   ├── auth/               # Core business logic (Login, Register, Crypto).
+│   ├── auth/               # Core business logic. Modular services (Login, Register, MFA, etc).
 │   ├── domain/             # Shared domain models/structs.
 │   └── storage/
 │       ├── db/             # Generated sqlc code (DO NOT EDIT).

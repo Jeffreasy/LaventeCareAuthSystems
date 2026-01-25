@@ -60,26 +60,25 @@ Invalid request parameters
 
 ---
 
-## 📚 Endpoints (Brief)
+---
 
-### Public / Semi-Public
-- `GET /health`
-- `POST /api/v1/auth/register` (Note: May require `invite` token)
-- `POST /api/v1/auth/login` (Returns `mfa_required`)
-- `POST /api/v1/auth/mfa/verify` (TOTP Login)
-- `POST /api/v1/auth/mfa/backup` (Backup Code Login)
-- `GET /api/v1/tenants/{slug}`
+## 📚 Endpoints \u0026 RBAC Requirements
 
-### Protected (User)
-- `POST /api/v1/auth/mfa/setup` (Start Enrollment)
-- `POST /api/v1/auth/mfa/activate` (Confirm Enrollment)
-- `GET /api/v1/auth/sessions` (List Devices)
-- `DELETE /api/v1/auth/sessions/{id}` (Remote Logout)
+| Endpoint | Method | Required Role | Auth Header | Description |
+|:---------|:-------|:--------------|:------------|:------------|
+| `/health` | GET | None (Public) | ❌ | Liveness \u0026 DB connectivity check |
+| `/api/v1/auth/register` | POST | None* | ❌ | User registration (*may require invite token) |
+| `/api/v1/auth/login` | POST | None | ❌ | Credential validation, returns `mfa_required` flag |
+| `/api/v1/auth/mfa/verify` | POST | None | ❌ | TOTP code verification (completes MFA login) |
+| `/api/v1/auth/mfa/backup` | POST | None | ❌ | Backup code verification (completes MFA login) |
+| `/api/v1/tenants/{slug}` | GET | None (Public) | ❌ | Retrieve tenant public metadata |
+| `/api/v1/auth/mfa/setup` | POST | `viewer`+ | ✅ Bearer | Initiate MFA enrollment (returns QR code) |
+| `/api/v1/auth/mfa/activate` | POST | `viewer`+ | ✅ Bearer | Confirm MFA enrollment with TOTP code |
+| `/api/v1/auth/sessions` | GET | `viewer`+ | ✅ Bearer | List user's active sessions/devices |
+| `/api/v1/auth/sessions/{id}` | DELETE | `viewer`+ | ✅ Bearer | Remote logout (revoke specific session) |
+| `/api/v1/admin/users/invite` | POST | `admin` | ✅ Bearer | Create tenant invitation for new user |
 
-### Protected (Admin)
-- `POST /api/v1/admin/users/invite` (Create Invitation)
-
-### Protected
-*Requires `Authorization: Bearer ...`*
+**Role Hierarchy:** `admin` > `editor` > `viewer`  
+**Permission Model:** A user with `admin` role can access all `editor` and `viewer` endpoints. `editor` can access `viewer` endpoints.
 
 *(Endpoints to be documented as they are implemented)*

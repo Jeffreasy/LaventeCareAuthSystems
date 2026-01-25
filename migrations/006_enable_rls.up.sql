@@ -33,4 +33,37 @@ CREATE POLICY tenant_isolation_invitations ON invitations
 -- and focus on `memberships` which is the critical data leak vector.
 
 -- Removing invitations RLS from this block to prevent breakage until strict context switching is implemented.
-ALTER TABLE invitations DISABLE ROW LEVEL SECURITY; 
+ALTER TABLE invitations DISABLE ROW LEVEL SECURITY;
+
+-- 3. REFRESH TOKENS: Enable RLS
+-- Critical: Sessions contain user credentials and must be strictly isolated per tenant.
+ALTER TABLE refresh_tokens ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation_refresh_tokens ON refresh_tokens
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant', TRUE), '')::UUID);
+
+-- 4. AUDIT LOGS: Enable RLS for SELECT only
+-- Writes use WithoutRLS pattern (system bypass) to allow cross-tenant audit logging by admin.
+-- Reads must be scoped to tenant context to prevent cross-tenant audit log access.
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation_audit_logs_read ON audit_logs
+    FOR SELECT
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant', TRUE), '')::UUID);
+
+-- IMPORTANT: Audit log INSERTs bypass RLS by using table owner privileges (via WithoutRLS helper).
+-- No INSERT policy needed as system writes are performed by superuser/table owner.
+
+-- ----------------------------
+-- HOW TO USE THIS RLS SETUP
+-- ----------------------------
+-- The application MUST set the session variable in every transaction via:
+--   SELECT set_config('app.current_tenant', '<tenant_uuid>', true)
+--
+-- Use the helper functions in internal/storage/db_context.go:
+--   - WithTenantContext(ctx, pool, tenantID, fn) for tenant-scoped operations
+--   - WithoutRLS(ctx, pool, fn) for system operations (audit writes, janitor cleanup)
+--
+-- Tables with RLS ENABLED: memberships, refresh_tokens, audit_logs
+-- Tables WITHOUT RLS: invitations, verification_tokens (public lookup required), users, tenants
+ 

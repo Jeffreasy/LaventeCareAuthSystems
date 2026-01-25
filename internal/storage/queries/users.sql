@@ -83,3 +83,29 @@ SET
     full_name = COALESCE($1, full_name),
     updated_at = NOW()
 WHERE id = $2;
+
+-- name: CreateUserWithMembership :one
+-- Atomically creates a user and their default tenant membership
+-- Prevents orphan users if membership creation fails (resolves TODO service.go:175)
+-- Note: Membership is only created if tenant_id_for_membership is NOT NULL
+WITH new_user AS (
+    INSERT INTO users (email, password_hash, full_name, default_tenant_id, mfa_secret, mfa_enabled)
+    VALUES (
+        sqlc.arg(email),
+        sqlc.arg(password_hash),
+        sqlc.arg(full_name),
+        sqlc.arg(default_tenant_id),
+        sqlc.arg(mfa_secret),
+        sqlc.arg(mfa_enabled)
+    )
+    RETURNING id, email, password_hash, full_name, is_email_verified, default_tenant_id, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until
+),
+new_membership AS (
+    INSERT INTO memberships (user_id, tenant_id, role)
+    SELECT new_user.id, sqlc.narg(tenant_id_for_membership)::uuid, sqlc.arg(role)
+    FROM new_user
+    WHERE sqlc.narg(tenant_id_for_membership) IS NOT NULL
+    RETURNING user_id
+)
+SELECT id, email, password_hash, full_name, is_email_verified, default_tenant_id, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until FROM new_user;
+

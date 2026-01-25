@@ -109,10 +109,8 @@ func main() {
 	authService := auth.NewAuthService(authConfig, pool, queries, hasher, tokenProvider, mfaService, auditLogger, emailSender)
 
 	// 6. Setup HTTP Server
-	server := api.NewServer(queries, authService, tokenProvider)
-
-	// Inject pool for enhanced health checks (Render requirement)
-	server.Pool = pool
+	// PHASE 50 RLS: Pool is now passed to NewServer for RLS middleware integration
+	server := api.NewServer(pool, queries, authService, tokenProvider)
 
 	port := os.Getenv("PORT")
 	if port == "" {
