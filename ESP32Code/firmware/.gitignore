@@ -1,0 +1,7 @@
+# Credentials
+secrets.h
+**/secrets.h
+
+# Build files
+.pio/
+.vscode/

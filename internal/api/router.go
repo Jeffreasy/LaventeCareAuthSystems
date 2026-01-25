@@ -53,6 +53,7 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 
 	// Handlers
 	authHandler := NewAuthHandler(authService)
+	iotHandler := NewIoTHandler(queries)
 
 	// Initialize server early to use its methods
 	server := &Server{
@@ -67,12 +68,18 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 	// Health check endpoint (used by Render for zero-downtime deployments)
 	r.Get("/health", server.HealthHandler())
 
+	// JWKS Endpoint (OIDC Glue)
+	r.Get("/.well-known/jwks.json", authHandler.GetJWKS)
+
 	// API Group
 	r.Route("/api/v1", func(r chi.Router) {
 
 		// Public Routes
 		r.Post("/auth/register", authHandler.Register)
 		r.Post("/auth/login", authHandler.Login)
+
+		// IoT Telemetry (Gatekeeper)
+		r.Post("/iot/telemetry", iotHandler.HandleTelemetry)
 
 		// MFA Verification (Public/Semi-Public)
 		r.Post("/auth/mfa/verify", authHandler.VerifyMFA)

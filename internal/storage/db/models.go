@@ -48,6 +48,18 @@ type Invitation struct {
 	Accepted  bool
 }
 
+type IotDevice struct {
+	ID         pgtype.UUID
+	DeviceID   string
+	TenantID   pgtype.UUID
+	SecretHash string
+	Name       string
+	IsActive   bool
+	LastSeenAt pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
+}
+
 type Membership struct {
 	ID        pgtype.UUID
 	UserID    pgtype.UUID

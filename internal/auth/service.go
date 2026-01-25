@@ -5,8 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/audit" // Ensure import
-
+	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/audit"
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/notify"
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/storage/db"
 	"github.com/google/uuid"
@@ -113,4 +112,9 @@ func (s *AuthService) WithRLS(ctx context.Context, tenantID uuid.UUID, fn func(q
 
 	// 4. Commit
 	return tx.Commit(ctx)
+}
+
+// GetJWKS returns the JSON Web Key Set for the OIDC provider.
+func (s *AuthService) GetJWKS() (*JWKS, error) {
+	return s.tokenProvider.GetJWKS()
 }

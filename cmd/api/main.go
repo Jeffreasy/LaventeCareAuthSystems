@@ -78,15 +78,16 @@ func main() {
 	queries := db.New(pool)
 
 	// 5. Initialize Auth Dependencies
-	// In production, load JWT secret from env var
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		jwtSecret = "super-secret-dev-key"
-		log.Warn("jwt_secret_default", "details", "dev_mode_enabled")
+	// In production, load JWT Private Key from env var (PEM format)
+	jwtPrivateKey := os.Getenv("JWT_PRIVATE_KEY")
+	if jwtPrivateKey == "" {
+		log.Warn("jwt_private_key_missing", "details", "server_may_panic_on_token_gen")
+		// Optional: Fallback to a hardcoded dev key (NOT RECOMMENDED for RS256 without generic file)
+		// For now, we allow the provider to panic if key is invalid, or fail fast.
 	}
 
 	hasher := auth.NewBcryptHasher()
-	tokenProvider := auth.NewJWTProvider(jwtSecret)
+	tokenProvider := auth.NewJWTProvider(jwtPrivateKey)
 
 	// Email Sender (Dev Mode)
 	emailSender := &notify.DevMailer{Logger: log}

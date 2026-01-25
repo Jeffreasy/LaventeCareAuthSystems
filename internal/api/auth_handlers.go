@@ -185,3 +185,16 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Logged out"})
 }
+
+// GetJWKS serves the JSON Web Key Set for OIDC verification.
+func (h *AuthHandler) GetJWKS(w http.ResponseWriter, r *http.Request) {
+	jwks, err := h.service.GetJWKS()
+	if err != nil {
+		slog.Error("GetJWKS failed", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(jwks)
+}
