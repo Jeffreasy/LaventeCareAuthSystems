@@ -37,7 +37,7 @@
 
 #ifdef USE_KOELKAST_D
     #define DEVICE_NAME         "Koelkast_D"
-    #define ESP32_DEVICE_MAC    "a4:c1:38:ae:94:ec"  // ESP32 WiFi MAC (NEEDS UPDATE!)
+    #define ESP32_DEVICE_MAC    "08:3a:f2:7c:d5:00"  // ESP32 WiFi MAC (Updated!)
     #define BLE_SENSOR_MAC      "a4:c1:38:ae:94:ec"  // ESP4
     #define PIN_DS18B20         17  // WeMos D1 R32
 #endif

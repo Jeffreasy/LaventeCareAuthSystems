@@ -221,13 +221,21 @@ void sendToConvex() {
     Serial.print(F("[WIFI] Connecting"));
     
     WiFi.mode(WIFI_STA);
+    
+    // Debug: Print actual MAC address
+    Serial.println();
+    Serial.print(F("[DEBUG] MAC Address: "));
+    Serial.println(WiFi.macAddress());
+    Serial.print(F("[DEBUG] Expected: "));
+    Serial.println(ESP32_DEVICE_MAC);
+    
     WiFi.begin(WIFI_SSID, WIFI_PASS);
     
     // Max Power for robustness
     WiFi.setTxPower(WIFI_POWER_19_5dBm);
 
     unsigned long start = millis();
-    while (WiFi.status() != WL_CONNECTED && (millis() - start) < 15000) {
+    while (WiFi.status() != WL_CONNECTED && (millis() - start) < 30000) {  // 30 sec timeout
         delay(500);
         Serial.print(".");
     }

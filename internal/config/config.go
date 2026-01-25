@@ -9,6 +9,8 @@ import (
 type Config struct {
 	AllowPublicRegistration bool
 	DatabaseURL             string
+	ConvexWebhookURL        string // URL to Convex gatekeeper endpoint
+	ConvexDeployKey         string // Deploy key for authentication
 	// Add other app-level configs here
 }
 
@@ -17,6 +19,8 @@ func Load() Config {
 	return Config{
 		AllowPublicRegistration: getEnvAsBool("ALLOW_PUBLIC_REGISTRATION", false),
 		DatabaseURL:             os.Getenv("DATABASE_URL"),
+		ConvexWebhookURL:        os.Getenv("CONVEX_WEBHOOK_URL"),
+		ConvexDeployKey:         os.Getenv("CONVEX_DEPLOY_KEY"),
 	}
 }
 

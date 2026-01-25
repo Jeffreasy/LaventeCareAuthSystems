@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/api/helpers"
@@ -94,13 +96,6 @@ func (h *IoTHandler) HandleTelemetry(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// 4. Proxy to Convex
-	// We assume CONVEX_URL and CONVEX_ADMIN_KEY are env vars or config.
-	// For this audit, we'll hardcode the verified Convex URL from user request or config.
-	// "https://laventecareauthsystems.onrender.com" is the GO server.
-	// The USER said: "Go pusht de data naar Convex via een Action of beveiligde webhook."
-	// Convex URL usually is https://<project>.convex.cloud.
-	// We will assume a CONVEX_WEBHOOK_URL env var.
-
 	// Enrich payload with TenantID/UserID linkage if needed, or rely on Convex knowing the device.
 	// The user wants Go to "verrijk de data met de juiste TenantID en UserID".
 
@@ -118,16 +113,76 @@ func (h *IoTHandler) HandleTelemetry(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now().UnixMilli(),
 	}
 
-	jsonBody, _ := json.Marshal(enrichedPayload)
-	// TODO: Load CONVEX_URL from config
-	convexURL := "https://positive-murre-133.convex.cloud/api/mutation/telemetry:ingest" // Example placeholder
-	req, _ := http.NewRequest("POST", convexURL, bytes.NewBuffer(jsonBody))
-	req.Header.Set("Content-Type", "application/json")
-	// req.Header.Set("Authorization", "Bearer " + os.Getenv("CONVEX_ADMIN_KEY"))
+	convexURL := os.Getenv("CONVEX_WEBHOOK_URL")
+	if convexURL == "" {
+		// Fallback for testing
+		convexURL = "https://dynamic-schnauzer-274.convex.site/api/gatekeeper/ingest"
+	}
 
-	// For now, we mock the success or return 200 OK.
+	deployKey := os.Getenv("CONVEX_DEPLOY_KEY")
+	if deployKey == "" {
+		// Log warning but continue (will fail at Convex)
+		fmt.Println("[IoT] WARN: CONVEX_DEPLOY_KEY not set")
+	}
+
+	jsonBody, _ := json.Marshal(enrichedPayload)
+	req, err := http.NewRequestWithContext(ctx, "POST", convexURL, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		fmt.Printf("[IoT] Failed to create request: %v\n", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Convex-Deploy-Key", deployKey)
+
+	// Send with timeout
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("[IoT] Convex request failed: %v\n", err)
+		http.Error(w, "Failed to forward telemetry", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("[IoT] Convex error %d: %s\n", resp.StatusCode, string(body))
+		http.Error(w, "Convex processing failed", http.StatusBadGateway)
+		return
+	}
+
+	// 5. Parse Convex response and forward to ESP32
+	var convexResponse struct {
+		Status string `json:"status"`
+		Config struct {
+			SleepDuration   int     `json:"sleepDuration"`
+			ScanDuration    int     `json:"scanDuration"`
+			TempOffsetWired float64 `json:"tempOffsetWired"`
+			TempOffsetBle   float64 `json:"tempOffsetBle"`
+		} `json:"config"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&convexResponse); err != nil {
+		fmt.Printf("[IoT] Failed to parse Convex response: %v\n", err)
+		// Still return success to ESP32, just with default config
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "ok",
+			"config": map[string]interface{}{
+				"sleepDuration":   300,
+				"scanDuration":    10,
+				"tempOffsetWired": 0.0,
+				"tempOffsetBle":   0.0,
+			},
+		})
+		return
+	}
+
+	// 6. Successfully forward config to ESP32
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "proxied"})
+	json.NewEncoder(w).Encode(convexResponse)
 }
 
 // uuidFromPg converts pgtype.UUID to string for JSON
