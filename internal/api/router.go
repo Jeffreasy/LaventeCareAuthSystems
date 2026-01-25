@@ -68,7 +68,8 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 	// Health check endpoint (used by Render for zero-downtime deployments)
 	r.Get("/health", server.HealthHandler())
 
-	// JWKS Endpoint (OIDC Glue)
+	// OIDC Endpoints (for Convex and other integrations)
+	r.Get("/.well-known/openid-configuration", authHandler.GetOIDCConfig)
 	r.Get("/.well-known/jwks.json", authHandler.GetJWKS)
 
 	// API Group
