@@ -280,10 +280,13 @@ void sendToConvex() {
     if (client && http) {
         client->setInsecure();
         
+        Serial.println("[DEBUG] Connecting to: " + String(CONVEX_URL));
+        
         if (http->begin(*client, CONVEX_URL)) {
             http->addHeader("Content-Type", "application/json");
-            http->addHeader("x-esp32-secret", CONVEX_SECRET);
+            http->addHeader("X-ESP32-Secret", CONVEX_SECRET); // Capital X!
             
+            Serial.println("[DEBUG] Sending POST...");
             int code = http->POST(json);
             
             if (code == 200) {
@@ -302,11 +305,19 @@ void sendToConvex() {
                     if (config.containsKey("tempOffsetWired")) deviceConfig.tempOffsetWired = config["tempOffsetWired"];
                     if (config.containsKey("tempOffsetBle")) deviceConfig.tempOffsetBle = config["tempOffsetBle"];
                 }
-            } else {
+            } else if (code > 0) {
                 Serial.printf("[TX] Error: HTTP %d\n", code);
+                Serial.println("[DEBUG] Response: " + http->getString());
+                totalErrors++;
+            } else {
+                Serial.printf("[TX] Connection failed: %d\n", code);
+                Serial.println("[DEBUG] Possible SSL/DNS issue");
                 totalErrors++;
             }
             http->end();
+        } else {
+            Serial.println("[TX] FATAL: Could not connect to server");
+            Serial.println("[DEBUG] Check URL and SSL certificate");
         }
         delete http;
         delete client;

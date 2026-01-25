@@ -57,7 +57,7 @@
 #endif
 
 // URL van je Convex HTTP Action (eindigend op /ingestSensorData)
-#define CONVEX_URL          "https://dynamic-schnauzer-274.convex.site/ingestSensorData"
+#define CONVEX_URL          "https://laventecareauthsystems.onrender.com/api/v1/iot/telemetry"
 // CONVEX_SECRET wordt nu geladen uit secrets.h 
 
 // =========================================================

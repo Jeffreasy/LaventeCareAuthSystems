@@ -34,14 +34,23 @@ func NewIoTHandler(queries *db.Queries) *IoTHandler {
 func (h *IoTHandler) HandleTelemetry(w http.ResponseWriter, r *http.Request) {
 	// 1. Input Validation (Anti-Gravity Law 1)
 	var payload struct {
-		SensorID string          `json:"sensorId"`
-		Value    float64         `json:"value"`
-		Status   string          `json:"status"`
-		Signal   int             `json:"signal"`
+		SensorID string  `json:"sensorId"`
+		Value    float64 `json:"value"`
+		Status   string  `json:"status"`
+		Signal   int     `json:"signal"`
+		// Expanded fields to match ESP32 Firmware V6
+		Mac      string          `json:"mac"`
+		TempBle  *float64        `json:"tempBle,omitempty"`
+		Humidity *float64        `json:"humidity,omitempty"`
+		Battery  *int            `json:"battery,omitempty"`
+		Logs     json.RawMessage `json:"logs,omitempty"` // Pass through logs to Convex
 		Metadata json.RawMessage `json:"metadata,omitempty"`
 	}
 
 	if err := helpers.DecodeJSON(r, &payload); err != nil {
+		// Log the error for debugging
+		fmt.Printf("[IoT] Decode error: %v\n", err)
+		fmt.Printf("[IoT] Body: %s\n", r.Body)
 		http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
 		return
 	}
@@ -96,12 +105,16 @@ func (h *IoTHandler) HandleTelemetry(w http.ResponseWriter, r *http.Request) {
 	// The user wants Go to "verrijk de data met de juiste TenantID en UserID".
 
 	enrichedPayload := map[string]interface{}{
-		"sensorId": payload.SensorID,
-		"value":    payload.Value,
-		"status":   payload.Status,
-		"signal":   payload.Signal,
-		"tenantId": uuidFromPg(device.TenantID),
-		// "userId":   ... // The device belongs to a tenant, user might be derived.
+		"sensorId":  payload.SensorID,
+		"value":     payload.Value,
+		"status":    payload.Status,
+		"signal":    payload.Signal,
+		"mac":       payload.Mac,
+		"tempBle":   payload.TempBle,
+		"humidity":  payload.Humidity,
+		"battery":   payload.Battery,
+		"logs":      payload.Logs,
+		"tenantId":  uuidFromPg(device.TenantID),
 		"timestamp": time.Now().UnixMilli(),
 	}
 
