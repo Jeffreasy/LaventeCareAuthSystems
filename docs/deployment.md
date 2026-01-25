@@ -18,6 +18,37 @@ This starts:
 - `worker` (Background process)
 - `db` on Port 5432 (internal network)
 
+## ☁️ Render Deployment (Recommended for Production)
+
+**Render provides a fully managed, production-ready platform with zero-config deployments.**
+
+### Quick Start
+```bash
+# 1. Generate secrets
+./scripts/generate-secrets.ps1
+
+# 2. Push to GitHub
+git push origin main
+
+# 3. Deploy using Blueprint
+# Go to https://dashboard.render.com
+# Click "New" → "Blueprint"
+# Select your repository
+# Render auto-detects render.yaml and deploys all services
+```
+
+**📖 See [Render Deployment Guide](./render_deployment_guide.md) for complete instructions.**
+
+### Features
+- ✅ **Auto-migrations** on deployment
+- ✅ **Zero-downtime** rolling updates
+- ✅ **Managed PostgreSQL** with daily backups
+- ✅ **Enhanced health checks** (API + Database connectivity)
+- ✅ **SSL/TLS** automatic
+- ✅ **~$21/month** for production setup
+
+---
+
 ## ☁️ Environment Variables
 Required variables for production (`.env`):
 
@@ -41,4 +72,7 @@ Required variables for production (`.env`):
 5.  **Domain**: Configure SSL/TLS termination at your Load Balancer (or Render). The app expects strict HTTPS headers in production.
 
 ## 🛡️ Health Checks
-- **Liveness**: `GET /health` -> Returns `200 OK`.
+- **Liveness & Database Connectivity**: `GET /health`
+  - Returns `200 OK` with `{"status":"healthy"}` if API and database are operational
+  - Returns `503 Service Unavailable` with `{"status":"unhealthy","error":"service temporarily unavailable"}` if database is unreachable
+  - Used by Render for zero-downtime deployments

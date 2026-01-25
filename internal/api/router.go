@@ -10,11 +10,13 @@ import (
 	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Server struct {
 	Router *chi.Mux
 	DB     *db.Queries
+	Pool   *pgxpool.Pool // Database connection pool for health checks
 	Auth   *auth.AuthService
 	Logger *slog.Logger
 }
@@ -51,10 +53,18 @@ func NewServer(queries *db.Queries, authService *auth.AuthService, tokenProvider
 	// Handlers
 	authHandler := NewAuthHandler(authService)
 
+	// Initialize server early to use its methods
+	server := &Server{
+		Router: r,
+		DB:     queries,
+		Pool:   nil, // Will be set by caller in main.go
+		Auth:   authService,
+		Logger: slog.Default(),
+	}
+
 	// Base Routes
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
-	})
+	// Health check endpoint (used by Render for zero-downtime deployments)
+	r.Get("/health", server.HealthHandler())
 
 	// API Group
 	r.Route("/api/v1", func(r chi.Router) {
@@ -114,10 +124,5 @@ func NewServer(queries *db.Queries, authService *auth.AuthService, tokenProvider
 		})
 	})
 
-	return &Server{
-		Router: r,
-		DB:     queries,
-		Auth:   authService,
-		Logger: slog.Default(),
-	}
+	return server
 }

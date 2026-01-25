@@ -161,6 +161,25 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*db.Us
 		return nil, fmt.Errorf("database error: %w", err)
 	}
 
+	// 4. Create Membership (Crucial for Access)
+	if input.TenantID != uuid.Nil {
+		_, err := s.queries.CreateMembership(ctx, db.CreateMembershipParams{
+			UserID:   user.ID,
+			TenantID: defaultTenantUUID,
+			Role:     "user", // Default Role for Public Registration
+		})
+		if err != nil {
+			// Note: If this fails, we have an orphan user.
+			// Ideally we wrap `CreateUser` and `CreateMembership` in a transaction.
+			// However for MVP, we log and return error.
+			// TODO: Wrap in Transaction.
+			s.audit.Log(ctx, "user.create.error", audit.LogParams{
+				Metadata: map[string]interface{}{"error": "membership_creation_failed"},
+			})
+			return nil, fmt.Errorf("failed to join tenant: %w", err)
+		}
+	}
+
 	// AUDIT LOG
 	s.audit.Log(ctx, "user.create.public", audit.LogParams{
 		ActorID:  user.ID.Bytes,

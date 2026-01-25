@@ -111,6 +111,9 @@ func main() {
 	// 6. Setup HTTP Server
 	server := api.NewServer(queries, authService, tokenProvider)
 
+	// Inject pool for enhanced health checks (Render requirement)
+	server.Pool = pool
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"

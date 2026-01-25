@@ -9,15 +9,27 @@ RUN go build -o main ./cmd/api
 RUN go build -o worker ./cmd/worker
 # Build Control CLI (Optioneel, handig voor in container)
 RUN go build -o control ./cmd/control
+# Build Migrate (NIEUW - voor auto-migrations)
+RUN go build -o migrate ./cmd/migrate
 
 # Final stage
 FROM alpine:latest
 WORKDIR /app
+
+# Install ca-certificates voor HTTPS calls
+RUN apk --no-cache add ca-certificates
+
 COPY --from=builder /app/main .
 COPY --from=builder /app/worker .
 COPY --from=builder /app/control .
-# Copy migrations if needed
+COPY --from=builder /app/migrate .
+
+# Copy migrations directory (nodig voor migrate tool)
 COPY migrations ./migrations 
 
-# Default command is API, maar kan overschreven worden door docker-compose
-CMD ["./main"]
+# Copy entrypoint script en maak executable
+COPY docker-entrypoint.sh .
+RUN chmod +x docker-entrypoint.sh
+
+# Default command is entrypoint (runs migrations + API)
+ENTRYPOINT ["./docker-entrypoint.sh"]
