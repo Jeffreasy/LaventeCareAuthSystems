@@ -186,6 +186,26 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Logged out"})
 }
 
+// GetOIDCConfig serves the OpenID Configuration for OIDC discovery.
+func (h *AuthHandler) GetOIDCConfig(w http.ResponseWriter, r *http.Request) {
+	baseURL := "https://laventecareauthsystems.onrender.com"
+
+	config := map[string]interface{}{
+		"issuer":                                baseURL,
+		"jwks_uri":                              baseURL + "/.well-known/jwks.json",
+		"authorization_endpoint":                baseURL + "/api/v1/auth/authorize",
+		"token_endpoint":                        baseURL + "/api/v1/auth/token",
+		"userinfo_endpoint":                     baseURL + "/api/v1/me",
+		"response_types_supported":              []string{"code", "token", "id_token"},
+		"subject_types_supported":               []string{"public"},
+		"id_token_signing_alg_values_supported": []string{"RS256"},
+		"scopes_supported":                      []string{"openid", "profile", "email"},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(config)
+}
+
 // GetJWKS serves the JSON Web Key Set for OIDC verification.
 func (h *AuthHandler) GetJWKS(w http.ResponseWriter, r *http.Request) {
 	jwks, err := h.service.GetJWKS()
