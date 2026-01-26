@@ -43,6 +43,7 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"updated"}`))
 }
@@ -104,6 +105,7 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	// For now, let's clear cookies to force immediate visual logout or re-login flow.
 	h.clearCookies(w)
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"password_changed", "message":"All sessions revoked. Please log in again."}`))
 }

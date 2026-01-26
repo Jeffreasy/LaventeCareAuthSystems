@@ -66,6 +66,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	// Don't return the full user model if it contains anything sensitive (though it shouldn't)
 	json.NewEncoder(w).Encode(user)
@@ -114,6 +115,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(result)
 }
@@ -163,6 +165,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// 5. Return Access Token (for memory client)
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
 
@@ -182,6 +185,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	// 3. Clear Cookies
 	h.clearCookies(w)
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Logged out"})
 }

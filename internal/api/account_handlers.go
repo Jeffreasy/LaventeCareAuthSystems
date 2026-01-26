@@ -48,6 +48,7 @@ func (h *AuthHandler) RequestEmailChange(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Return token for MVP (simulate email)
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
 
@@ -71,6 +72,7 @@ func (h *AuthHandler) ConfirmEmailChange(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"email_updated"}`))
 }
