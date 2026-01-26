@@ -1,0 +1,12 @@
+=== RUN   TestAuditLogIntegration
+    audit_integration_test.go:76: 
+        	Error Trace:	C:/Users/JJALa/Desktop/2026Developer/LaventeCareAuthSystems/internal/audit/audit_integration_test.go:76
+        	Error:      	Received unexpected error:
+        	            	failed to connect to `user=user database=laventecare`:
+        	            		[::1]:5488 (localhost): dial error: dial tcp [::1]:5488: connectex: No connection could be made because the target machine actively refused it.
+        	            		127.0.0.1:5488 (localhost): dial error: dial tcp 127.0.0.1:5488: connectex: No connection could be made because the target machine actively refused it.
+        	Test:       	TestAuditLogIntegration
+--- FAIL: TestAuditLogIntegration (0.15s)
+FAIL
+FAIL	github.com/Jeffreasy/LaventeCareAuthSystems/internal/audit	0.353s
+FAIL

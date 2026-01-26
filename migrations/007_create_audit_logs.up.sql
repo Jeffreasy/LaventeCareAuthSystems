@@ -36,3 +36,13 @@ REVOKE UPDATE, DELETE ON audit_logs FROM "user"; -- Default postgres user (see d
 
 -- If using a dedicated app_user in production, also revoke for that role:
 -- REVOKE UPDATE, DELETE ON audit_logs FROM app_user;
+
+-- 5. RLS: Enable RLS for SELECT only
+-- Writes use WithoutRLS pattern (system bypass) to allow cross-tenant audit logging by admin.
+-- Reads must be scoped to tenant context to prevent cross-tenant audit log access.
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation_audit_logs_read ON audit_logs
+    FOR SELECT
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant', TRUE), '')::UUID);
+

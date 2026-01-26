@@ -2,6 +2,10 @@ package audit_test
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"testing"
 
 	"log/slog"
@@ -30,7 +34,19 @@ func SetupServices(t *testing.T) (*pgxpool.Pool, *auth.AuthService, *db.Queries)
 
 	// Mock or real deps
 	hasher := auth.NewBcryptHasher()
-	tokenProvider := auth.NewJWTProvider("secret")
+	// Generate real RSA key for test
+	reader := rand.Reader
+	bitSize := 2048
+	key, err := rsa.GenerateKey(reader, bitSize)
+	require.NoError(t, err)
+
+	privBytes := x509.MarshalPKCS1PrivateKey(key)
+	keyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: privBytes,
+	})
+
+	tokenProvider := auth.NewJWTProvider(string(keyPEM))
 	mfa := auth.NewMFAService("Test")
 	mail := &notify.DevMailer{Logger: logger}
 

@@ -42,17 +42,7 @@ ALTER TABLE refresh_tokens ENABLE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation_refresh_tokens ON refresh_tokens
     USING (tenant_id = NULLIF(current_setting('app.current_tenant', TRUE), '')::UUID);
 
--- 4. AUDIT LOGS: Enable RLS for SELECT only
--- Writes use WithoutRLS pattern (system bypass) to allow cross-tenant audit logging by admin.
--- Reads must be scoped to tenant context to prevent cross-tenant audit log access.
-ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY tenant_isolation_audit_logs_read ON audit_logs
-    FOR SELECT
-    USING (tenant_id = NULLIF(current_setting('app.current_tenant', TRUE), '')::UUID);
-
--- IMPORTANT: Audit log INSERTs bypass RLS by using table owner privileges (via WithoutRLS helper).
--- No INSERT policy needed as system writes are performed by superuser/table owner.
+-- 4. Audit Logs RLS moved to 007 (Table Creation)
 
 -- ----------------------------
 -- HOW TO USE THIS RLS SETUP
