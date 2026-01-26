@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/storage/db"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -33,9 +34,12 @@ func hashToken(token string) string {
 }
 
 // RequestPasswordReset initiates the flow.
-func (s *AuthService) RequestPasswordReset(ctx context.Context, email string) error {
+func (s *AuthService) RequestPasswordReset(ctx context.Context, email string, tenantID uuid.UUID) error {
 	// 1. Find User (Silence is Golden: if not found, pretend success)
-	user, err := s.queries.GetUserByEmail(ctx, email)
+	user, err := s.queries.GetUserByEmail(ctx, db.GetUserByEmailParams{
+		Email:    email,
+		TenantID: pgtype.UUID{Bytes: tenantID, Valid: true},
+	})
 	if err != nil {
 		// Log internal, return nil to client
 		return nil
@@ -45,12 +49,12 @@ func (s *AuthService) RequestPasswordReset(ctx context.Context, email string) er
 	if appURL == "" {
 		appURL = "https://auth.laventecare.nl" // Ultimate fallback if config not set
 	}
-	if user.DefaultTenantID.Valid {
+	if user.TenantID.Valid {
 		// Fetch Tenant Config for App URL
 		// Note: This requires the new GetTenantConfig query to be generated.
 		// If valid, use it.
 		// We use a detached context or same context? Same context.
-		tenantConfig, err := s.queries.GetTenantConfig(ctx, user.DefaultTenantID)
+		tenantConfig, err := s.queries.GetTenantConfig(ctx, user.TenantID)
 		if err == nil && tenantConfig.AppUrl != "" {
 			appURL = tenantConfig.AppUrl
 		}
@@ -118,8 +122,11 @@ func (s *AuthService) ResetPassword(ctx context.Context, rawToken string, newPas
 }
 
 // RequestEmailVerification initiates the email verification flow.
-func (s *AuthService) RequestEmailVerification(ctx context.Context, email string) error {
-	user, err := s.queries.GetUserByEmail(ctx, email)
+func (s *AuthService) RequestEmailVerification(ctx context.Context, email string, tenantID uuid.UUID) error {
+	user, err := s.queries.GetUserByEmail(ctx, db.GetUserByEmailParams{
+		Email:    email,
+		TenantID: pgtype.UUID{Bytes: tenantID, Valid: true},
+	})
 	if err != nil {
 		return nil // Silence is Golden
 	}
@@ -150,8 +157,8 @@ func (s *AuthService) RequestEmailVerification(ctx context.Context, email string
 	if appURL == "" {
 		appURL = "https://auth.laventecare.nl"
 	}
-	if user.DefaultTenantID.Valid {
-		tenantConfig, err := s.queries.GetTenantConfig(ctx, user.DefaultTenantID)
+	if user.TenantID.Valid {
+		tenantConfig, err := s.queries.GetTenantConfig(ctx, user.TenantID)
 		if err == nil && tenantConfig.AppUrl != "" {
 			appURL = tenantConfig.AppUrl
 		}

@@ -15,8 +15,11 @@ type MFASetupResponse struct {
 	BackupCodes []string
 }
 
-func (s *AuthService) SetupMFA(ctx context.Context, userID uuid.UUID) (*MFASetupResponse, error) {
-	user, err := s.queries.GetUserByID(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+func (s *AuthService) SetupMFA(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) (*MFASetupResponse, error) {
+	user, err := s.queries.GetUserByID(ctx, db.GetUserByIDParams{
+		ID:       pgtype.UUID{Bytes: userID, Valid: true},
+		TenantID: pgtype.UUID{Bytes: tenantID, Valid: true},
+	})
 	if err != nil {
 		return nil, ErrUserNotFound
 	}

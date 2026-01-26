@@ -81,7 +81,13 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. Action
-	err = h.service.ChangePassword(r.Context(), userID, req.OldPassword, req.NewPassword)
+	tenantID, err := customMiddleware.GetTenantID(r.Context())
+	if err != nil {
+		http.Error(w, "Tenant Context Required", http.StatusUnauthorized)
+		return
+	}
+
+	err = h.service.ChangePassword(r.Context(), userID, tenantID, req.OldPassword, req.NewPassword)
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			slog.Warn("ChangePassword: Old password incorrect", "user", userID)

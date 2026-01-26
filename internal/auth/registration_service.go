@@ -94,15 +94,15 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*db.Us
 	// 3. Create User + Membership Atomically (FIXED: was TODO service.go:175)
 	// Previously: CreateUser and CreateMembership were separate → orphan users possible
 	// Now: Single transaction query prevents orphan users
+	// TenantID is now MANDATORY.
 	user, err := s.queries.CreateUserWithMembership(ctx, db.CreateUserWithMembershipParams{
-		Email:                 input.Email,
-		PasswordHash:          hashText,
-		FullName:              fullNameText,
-		DefaultTenantID:       defaultTenantUUID,
-		MfaSecret:             pgtype.Text{Valid: false},
-		MfaEnabled:            false,
-		TenantIDForMembership: defaultTenantUUID,
-		Role:                  "user", // Default Role for Public Registration
+		Email:        input.Email,
+		PasswordHash: hashText,
+		FullName:     fullNameText,
+		TenantID:     defaultTenantUUID,
+		MfaSecret:    pgtype.Text{Valid: false},
+		MfaEnabled:   false,
+		Role:         "user", // Default Role for Public Registration
 	})
 
 	if err != nil {
@@ -126,7 +126,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput) (*db.Us
 		PasswordHash:        user.PasswordHash,
 		FullName:            user.FullName,
 		IsEmailVerified:     user.IsEmailVerified,
-		DefaultTenantID:     user.DefaultTenantID,
+		TenantID:            user.TenantID,
 		MfaSecret:           user.MfaSecret,
 		MfaEnabled:          user.MfaEnabled,
 		FailedLoginAttempts: user.FailedLoginAttempts,

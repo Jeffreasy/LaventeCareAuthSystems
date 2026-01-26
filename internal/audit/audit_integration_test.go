@@ -94,7 +94,10 @@ func TestAuditLogIntegration(t *testing.T) {
 
 		// Verify Actor is the user (Self registration)
 		// We need UserID. We can get it from users table or by email.
-		user, _ := queries.GetUserByEmail(ctx, email)
+		user, _ := queries.GetUserByEmail(ctx, db.GetUserByEmailParams{
+			Email:    email,
+			TenantID: pgtype.UUID{Bytes: tenantID, Valid: true},
+		})
 		assert.Equal(t, user.ID, logs[0].ActorID)
 	})
 }

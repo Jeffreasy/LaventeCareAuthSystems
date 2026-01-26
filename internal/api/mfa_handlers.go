@@ -33,7 +33,14 @@ func (h *AuthHandler) VerifyMFA(w http.ResponseWriter, r *http.Request) {
 
 	ip := helpers.GetRealIP(r)
 	ua := r.UserAgent()
-	result, err := h.service.VerifyLoginMFA(r.Context(), tokenString, req.Code, ip, ua)
+
+	tenantID, err := customMiddleware.GetTenantID(r.Context())
+	if err != nil {
+		http.Error(w, "Tenant Context Required", http.StatusUnauthorized)
+		return
+	}
+
+	result, err := h.service.VerifyLoginMFA(r.Context(), tokenString, req.Code, tenantID, ip, ua)
 	if err != nil {
 		slog.Warn("MFA Verify Failed", "user", req.UserID, "error", err)
 		http.Error(w, "Invalid code", http.StatusUnauthorized)
@@ -61,7 +68,14 @@ func (h *AuthHandler) VerifyBackupCode(w http.ResponseWriter, r *http.Request) {
 
 	ip := helpers.GetRealIP(r)
 	ua := r.UserAgent()
-	result, err := h.service.VerifyLoginBackupCode(r.Context(), tokenString, req.Code, ip, ua)
+
+	tenantID, err := customMiddleware.GetTenantID(r.Context())
+	if err != nil {
+		http.Error(w, "Tenant Context Required", http.StatusUnauthorized)
+		return
+	}
+
+	result, err := h.service.VerifyLoginBackupCode(r.Context(), tokenString, req.Code, tenantID, ip, ua)
 	if err != nil {
 		slog.Warn("Backup Code Verify Failed", "user", req.UserID, "error", err)
 		http.Error(w, "Invalid code", http.StatusUnauthorized)
@@ -79,7 +93,13 @@ func (h *AuthHandler) SetupMFA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.service.SetupMFA(r.Context(), userID)
+	tenantID, err := customMiddleware.GetTenantID(r.Context())
+	if err != nil {
+		http.Error(w, "Tenant Context Required", http.StatusUnauthorized)
+		return
+	}
+
+	resp, err := h.service.SetupMFA(r.Context(), userID, tenantID)
 	if err != nil {
 		http.Error(w, "Failed to setup MFA", http.StatusInternalServerError)
 		return

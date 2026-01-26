@@ -9,17 +9,17 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/api/helpers"
+	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/api/middleware"
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/auth"
-	"github.com/google/uuid"
 )
 
 // RegisterRequest defines the expected JSON body for registration.
 type RegisterRequest struct {
-	Email    string    `json:"email"`
-	Password string    `json:"password"`
-	FullName string    `json:"full_name"`
-	TenantID uuid.UUID `json:"tenant_id"`       // Optional
-	Token    string    `json:"token,omitempty"` // Invite Token
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	FullName string `json:"full_name"`
+	// TenantID removed: Strict Tenant Isolation requires usage of X-Tenant-ID Header
+	Token string `json:"token,omitempty"` // Invite Token
 }
 
 func (req *RegisterRequest) Validate() error {
@@ -50,11 +50,23 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Resolve Tenant Context
+	// Optimization: If Token is present, Service *could* infer tenant,
+	// but enforcing Context consistency is safer.
+	tenantID, err := middleware.GetTenantID(r.Context())
+	if err != nil && req.Token == "" {
+		// Only required if NOT using an invite (Invites carry their own context, theoretically)
+		// But in strict mode, we want the endpoint to match the tenant.
+		slog.Warn("Register: Missing Tenant Context", "ip", r.RemoteAddr)
+		http.Error(w, "Tenant ID Header required", http.StatusBadRequest)
+		return
+	}
+
 	input := auth.RegisterInput{
 		Email:    req.Email,
 		Password: req.Password,
 		FullName: req.FullName,
-		TenantID: req.TenantID,
+		TenantID: tenantID, // Secured from Context
 		Token:    req.Token,
 	}
 
@@ -99,9 +111,18 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Anti-Gravity Security: Enforce Tenant Context
+	tenantID, err := middleware.GetTenantID(r.Context())
+	if err != nil {
+		slog.Warn("Login: Missing Tenant Context", "ip", helpers.GetRealIP(r))
+		http.Error(w, "Tenant Context Required", http.StatusBadRequest)
+		return
+	}
+
 	input := auth.LoginInput{
 		Email:     req.Email,
 		Password:  req.Password,
+		TenantID:  tenantID, // Enforce Scope
 		IP:        helpers.GetRealIP(r),
 		UserAgent: r.UserAgent(),
 	}

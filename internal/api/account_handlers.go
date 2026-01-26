@@ -40,7 +40,14 @@ func (h *AuthHandler) RequestEmailChange(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	token, err := h.service.RequestEmailChange(r.Context(), userID, req.NewEmail, req.Password)
+	// Tenant Context
+	tenantID, err := customMiddleware.GetTenantID(r.Context())
+	if err != nil {
+		http.Error(w, "Tenant Context Required", http.StatusUnauthorized)
+		return
+	}
+
+	token, err := h.service.RequestEmailChange(r.Context(), userID, tenantID, req.NewEmail, req.Password)
 	if err != nil {
 		slog.Warn("RequestEmailChange failed", "user", userID, "error", err)
 		http.Error(w, "Request failed", http.StatusUnauthorized)

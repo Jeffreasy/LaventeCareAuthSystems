@@ -68,11 +68,11 @@ func (s *AuthService) resolveTenantAndRole(ctx context.Context, user db.User) (u
 	tenantID := uuid.Nil
 	role := ""
 
-	if !user.DefaultTenantID.Valid {
+	if !user.TenantID.Valid {
 		return tenantID, role, nil
 	}
 
-	tenantID = uuid.UUID(user.DefaultTenantID.Bytes)
+	tenantID = uuid.UUID(user.TenantID.Bytes)
 
 	// Fetch role for this tenant
 	membership, err := s.queries.GetMembership(ctx, db.GetMembershipParams{
@@ -80,7 +80,7 @@ func (s *AuthService) resolveTenantAndRole(ctx context.Context, user db.User) (u
 		TenantID: pgtype.UUID{Bytes: tenantID, Valid: true},
 	})
 	if err != nil {
-		// User has default_tenant_id but no membership? Return Nil tenant (degraded)
+		// User has tenant_id but no membership? Return Nil tenant (degraded)
 		return uuid.Nil, "", nil
 	}
 

@@ -13,19 +13,19 @@ import (
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
-    email, password_hash, full_name, default_tenant_id, mfa_secret, mfa_enabled
+    email, password_hash, full_name, tenant_id, mfa_secret, mfa_enabled
 ) VALUES (
     $1, $2, $3, $4, $5, $6
-) RETURNING id, email, password_hash, full_name, is_email_verified, default_tenant_id, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until
+) RETURNING id, email, password_hash, full_name, is_email_verified, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until, tenant_id
 `
 
 type CreateUserParams struct {
-	Email           string
-	PasswordHash    pgtype.Text
-	FullName        pgtype.Text
-	DefaultTenantID pgtype.UUID
-	MfaSecret       pgtype.Text
-	MfaEnabled      bool
+	Email        string
+	PasswordHash pgtype.Text
+	FullName     pgtype.Text
+	TenantID     pgtype.UUID
+	MfaSecret    pgtype.Text
+	MfaEnabled   bool
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -33,7 +33,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		arg.Email,
 		arg.PasswordHash,
 		arg.FullName,
-		arg.DefaultTenantID,
+		arg.TenantID,
 		arg.MfaSecret,
 		arg.MfaEnabled,
 	)
@@ -44,21 +44,21 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.PasswordHash,
 		&i.FullName,
 		&i.IsEmailVerified,
-		&i.DefaultTenantID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MfaSecret,
 		&i.MfaEnabled,
 		&i.FailedLoginAttempts,
 		&i.LockedUntil,
+		&i.TenantID,
 	)
 	return i, err
 }
 
 const createUserFromInvitation = `-- name: CreateUserFromInvitation :one
 WITH new_user AS (
-    INSERT INTO users (email, password_hash, is_email_verified)
-    VALUES ($1, $2, TRUE) -- Verified because they got the invite email
+    INSERT INTO users (email, password_hash, is_email_verified, tenant_id)
+    VALUES ($1, $2, TRUE, $3) -- Tenant Scoped!
     RETURNING id, email, created_at
 ),
 new_membership AS (
@@ -103,7 +103,7 @@ func (q *Queries) CreateUserFromInvitation(ctx context.Context, arg CreateUserFr
 
 const createUserWithMembership = `-- name: CreateUserWithMembership :one
 WITH new_user AS (
-    INSERT INTO users (email, password_hash, full_name, default_tenant_id, mfa_secret, mfa_enabled)
+    INSERT INTO users (email, password_hash, full_name, tenant_id, mfa_secret, mfa_enabled)
     VALUES (
         $1,
         $2,
@@ -112,27 +112,25 @@ WITH new_user AS (
         $5,
         $6
     )
-    RETURNING id, email, password_hash, full_name, is_email_verified, default_tenant_id, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until
+    RETURNING id, email, password_hash, full_name, is_email_verified, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until, tenant_id
 ),
 new_membership AS (
     INSERT INTO memberships (user_id, tenant_id, role)
-    SELECT new_user.id, $7::uuid, $8
+    SELECT new_user.id, $4, $7
     FROM new_user
-    WHERE $7 IS NOT NULL
     RETURNING user_id
 )
-SELECT id, email, password_hash, full_name, is_email_verified, default_tenant_id, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until FROM new_user
+SELECT id, email, password_hash, full_name, is_email_verified, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until, tenant_id FROM new_user
 `
 
 type CreateUserWithMembershipParams struct {
-	Email                 string
-	PasswordHash          pgtype.Text
-	FullName              pgtype.Text
-	DefaultTenantID       pgtype.UUID
-	MfaSecret             pgtype.Text
-	MfaEnabled            bool
-	TenantIDForMembership pgtype.UUID
-	Role                  string
+	Email        string
+	PasswordHash pgtype.Text
+	FullName     pgtype.Text
+	TenantID     pgtype.UUID
+	MfaSecret    pgtype.Text
+	MfaEnabled   bool
+	Role         string
 }
 
 type CreateUserWithMembershipRow struct {
@@ -141,27 +139,25 @@ type CreateUserWithMembershipRow struct {
 	PasswordHash        pgtype.Text
 	FullName            pgtype.Text
 	IsEmailVerified     bool
-	DefaultTenantID     pgtype.UUID
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	MfaSecret           pgtype.Text
 	MfaEnabled          bool
 	FailedLoginAttempts int32
 	LockedUntil         pgtype.Timestamptz
+	TenantID            pgtype.UUID
 }
 
 // Atomically creates a user and their default tenant membership
-// Prevents orphan users if membership creation fails (resolves TODO service.go:175)
-// Note: Membership is only created if tenant_id_for_membership is NOT NULL
+// Note: TenantID is now MANDATORY for the user itself.
 func (q *Queries) CreateUserWithMembership(ctx context.Context, arg CreateUserWithMembershipParams) (CreateUserWithMembershipRow, error) {
 	row := q.db.QueryRow(ctx, createUserWithMembership,
 		arg.Email,
 		arg.PasswordHash,
 		arg.FullName,
-		arg.DefaultTenantID,
+		arg.TenantID,
 		arg.MfaSecret,
 		arg.MfaEnabled,
-		arg.TenantIDForMembership,
 		arg.Role,
 	)
 	var i CreateUserWithMembershipRow
@@ -171,24 +167,29 @@ func (q *Queries) CreateUserWithMembership(ctx context.Context, arg CreateUserWi
 		&i.PasswordHash,
 		&i.FullName,
 		&i.IsEmailVerified,
-		&i.DefaultTenantID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MfaSecret,
 		&i.MfaEnabled,
 		&i.FailedLoginAttempts,
 		&i.LockedUntil,
+		&i.TenantID,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, full_name, is_email_verified, default_tenant_id, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until FROM users
-WHERE email = $1 LIMIT 1
+SELECT id, email, password_hash, full_name, is_email_verified, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until, tenant_id FROM users
+WHERE email = $1 AND tenant_id = $2 LIMIT 1
 `
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByEmail, email)
+type GetUserByEmailParams struct {
+	Email    string
+	TenantID pgtype.UUID
+}
+
+func (q *Queries) GetUserByEmail(ctx context.Context, arg GetUserByEmailParams) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, arg.Email, arg.TenantID)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -196,24 +197,29 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.PasswordHash,
 		&i.FullName,
 		&i.IsEmailVerified,
-		&i.DefaultTenantID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MfaSecret,
 		&i.MfaEnabled,
 		&i.FailedLoginAttempts,
 		&i.LockedUntil,
+		&i.TenantID,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, full_name, is_email_verified, default_tenant_id, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until FROM users
-WHERE id = $1 LIMIT 1
+SELECT id, email, password_hash, full_name, is_email_verified, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until, tenant_id FROM users
+WHERE id = $1 AND tenant_id = $2 LIMIT 1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByID, id)
+type GetUserByIDParams struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, arg GetUserByIDParams) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, arg.ID, arg.TenantID)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -221,13 +227,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
 		&i.PasswordHash,
 		&i.FullName,
 		&i.IsEmailVerified,
-		&i.DefaultTenantID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MfaSecret,
 		&i.MfaEnabled,
 		&i.FailedLoginAttempts,
 		&i.LockedUntil,
+		&i.TenantID,
 	)
 	return i, err
 }
@@ -316,7 +322,7 @@ const updateUserMFA = `-- name: UpdateUserMFA :one
 UPDATE users
 SET mfa_secret = $2, mfa_enabled = $3, updated_at = NOW()
 WHERE id = $1
-RETURNING id, email, password_hash, full_name, is_email_verified, default_tenant_id, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until
+RETURNING id, email, password_hash, full_name, is_email_verified, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until, tenant_id
 `
 
 type UpdateUserMFAParams struct {
@@ -334,13 +340,13 @@ func (q *Queries) UpdateUserMFA(ctx context.Context, arg UpdateUserMFAParams) (U
 		&i.PasswordHash,
 		&i.FullName,
 		&i.IsEmailVerified,
-		&i.DefaultTenantID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MfaSecret,
 		&i.MfaEnabled,
 		&i.FailedLoginAttempts,
 		&i.LockedUntil,
+		&i.TenantID,
 	)
 	return i, err
 }
@@ -349,7 +355,7 @@ const updateUserPassword = `-- name: UpdateUserPassword :one
 UPDATE users
 SET password_hash = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, email, password_hash, full_name, is_email_verified, default_tenant_id, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until
+RETURNING id, email, password_hash, full_name, is_email_verified, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until, tenant_id
 `
 
 type UpdateUserPasswordParams struct {
@@ -366,13 +372,13 @@ func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPassword
 		&i.PasswordHash,
 		&i.FullName,
 		&i.IsEmailVerified,
-		&i.DefaultTenantID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MfaSecret,
 		&i.MfaEnabled,
 		&i.FailedLoginAttempts,
 		&i.LockedUntil,
+		&i.TenantID,
 	)
 	return i, err
 }
@@ -399,7 +405,7 @@ const verifyUserEmail = `-- name: VerifyUserEmail :one
 UPDATE users
 SET is_email_verified = TRUE, updated_at = NOW()
 WHERE id = $1
-RETURNING id, email, password_hash, full_name, is_email_verified, default_tenant_id, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until
+RETURNING id, email, password_hash, full_name, is_email_verified, created_at, updated_at, mfa_secret, mfa_enabled, failed_login_attempts, locked_until, tenant_id
 `
 
 func (q *Queries) VerifyUserEmail(ctx context.Context, id pgtype.UUID) (User, error) {
@@ -411,13 +417,13 @@ func (q *Queries) VerifyUserEmail(ctx context.Context, id pgtype.UUID) (User, er
 		&i.PasswordHash,
 		&i.FullName,
 		&i.IsEmailVerified,
-		&i.DefaultTenantID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MfaSecret,
 		&i.MfaEnabled,
 		&i.FailedLoginAttempts,
 		&i.LockedUntil,
+		&i.TenantID,
 	)
 	return i, err
 }

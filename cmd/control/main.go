@@ -48,12 +48,18 @@ func resetPasswordCmd() {
 	fs := flag.NewFlagSet("reset-password", flag.ExitOnError)
 	email := fs.String("email", "", "User Email")
 	password := fs.String("password", "", "New Password")
+	tenant := fs.String("tenant", "", "Tenant ID (UUID)")
 	fs.Parse(os.Args[2:])
 
-	if *email == "" || *password == "" {
-		fmt.Println("Error: --email and --password are required")
+	if *email == "" || *password == "" || *tenant == "" {
+		fmt.Println("Error: --email, --password, and --tenant are required")
 		fs.PrintDefaults()
 		os.Exit(1)
+	}
+
+	tenantUUID, err := uuid.Parse(*tenant)
+	if err != nil {
+		log.Fatalf("Invalid tenant ID: %v", err)
 	}
 
 	cfg := config.Load()
@@ -77,8 +83,8 @@ func resetPasswordCmd() {
 	// 2. Update DB
 	// Using Exec for direct update
 	cmdTag, err := pool.Exec(context.Background(),
-		"UPDATE users SET password_hash = $1, updated_at = NOW() WHERE email = $2",
-		hash, *email)
+		"UPDATE users SET password_hash = $1, updated_at = NOW() WHERE email = $2 AND tenant_id = $3",
+		hash, *email, tenantUUID)
 
 	if err != nil {
 		log.Fatalf("❌ Failed to update password: %v", err)
@@ -94,10 +100,11 @@ func resetPasswordCmd() {
 func fixMembershipCmd() {
 	fs := flag.NewFlagSet("fix-membership", flag.ExitOnError)
 	email := fs.String("email", "", "User Email")
+	tenant := fs.String("tenant", "", "Tenant ID (UUID)")
 	fs.Parse(os.Args[2:])
 
-	if *email == "" {
-		fmt.Println("Error: --email is required")
+	if *email == "" || *tenant == "" {
+		fmt.Println("Error: --email and --tenant are required")
 		fs.PrintDefaults()
 		os.Exit(1)
 	}
@@ -113,14 +120,22 @@ func fixMembershipCmd() {
 	}
 	queries := storage.New(pool)
 
+	tenantUUID, err := uuid.Parse(*tenant)
+	if err != nil {
+		log.Fatalf("Invalid tenant ID: %v", err)
+	}
+
 	// Fetch User
-	user, err := queries.GetUserByEmail(context.Background(), *email)
+	user, err := queries.GetUserByEmail(context.Background(), db.GetUserByEmailParams{
+		Email:    *email,
+		TenantID: pgtype.UUID{Bytes: tenantUUID, Valid: true},
+	})
 	if err != nil {
 		log.Fatalf("❌ User not found: %v", err)
 	}
 
-	if !user.DefaultTenantID.Valid {
-		log.Fatalf("❌ User has no default tenant. Nothing to fix.")
+	if !user.TenantID.Valid {
+		log.Fatalf("❌ User has no tenant (this should not happen with strict isolation).")
 	}
 
 	// Create Membership
@@ -130,7 +145,7 @@ func fixMembershipCmd() {
 
 	cmdTag, err := pool.Exec(context.Background(),
 		"INSERT INTO memberships (user_id, tenant_id, role) VALUES ($1, $2, 'admin') ON CONFLICT DO NOTHING",
-		user.ID.Bytes, user.DefaultTenantID.Bytes)
+		user.ID.Bytes, user.TenantID.Bytes)
 
 	if err != nil {
 		log.Fatalf("❌ CONFIG FAILED: %v", err)
@@ -146,10 +161,11 @@ func fixMembershipCmd() {
 func checkUserCmd() {
 	fs := flag.NewFlagSet("check-user", flag.ExitOnError)
 	email := fs.String("email", "", "User Email")
+	tenant := fs.String("tenant", "", "Tenant ID (UUID)")
 	fs.Parse(os.Args[2:])
 
-	if *email == "" {
-		fmt.Println("Error: --email is required")
+	if *email == "" || *tenant == "" {
+		fmt.Println("Error: --email and --tenant are required")
 		fs.PrintDefaults()
 		os.Exit(1)
 	}
@@ -165,8 +181,16 @@ func checkUserCmd() {
 	}
 	queries := storage.New(pool)
 
+	tenantUUID, err := uuid.Parse(*tenant)
+	if err != nil {
+		log.Fatalf("Invalid tenant ID: %v", err)
+	}
+
 	// Fetch User
-	user, err := queries.GetUserByEmail(context.Background(), *email)
+	user, err := queries.GetUserByEmail(context.Background(), db.GetUserByEmailParams{
+		Email:    *email,
+		TenantID: pgtype.UUID{Bytes: tenantUUID, Valid: true},
+	})
 	if err != nil {
 		log.Fatalf("❌ User not found: %v", err)
 	}
@@ -175,12 +199,12 @@ func checkUserCmd() {
 	fmt.Printf("ID: %x\n", user.ID.Bytes)
 	fmt.Printf("Email: %s\n", user.Email)
 
-	if user.DefaultTenantID.Valid {
-		uid, _ := uuid.FromBytes(user.DefaultTenantID.Bytes[:])
+	if user.TenantID.Valid {
+		uid, _ := uuid.FromBytes(user.TenantID.Bytes[:])
 		fmt.Printf("\n>>> TENANT_ID: %s <<<\n", uid.String())
 
 		// Verify if tenant exists
-		t, err := queries.GetTenantByID(context.Background(), pgtype.UUID{Bytes: user.DefaultTenantID.Bytes, Valid: true})
+		t, err := queries.GetTenantByID(context.Background(), pgtype.UUID{Bytes: user.TenantID.Bytes, Valid: true})
 		if err != nil {
 			fmt.Printf("⚠️  WARNING: Default Tenant ID points to NON-EXISTENT tenant! (%v)\n", err)
 		} else {

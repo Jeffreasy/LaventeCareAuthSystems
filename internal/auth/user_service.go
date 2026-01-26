@@ -12,10 +12,14 @@ import (
 )
 
 // RequestEmailChange initiates a secure email change flow.
+// RequestEmailChange initiates a secure email change flow.
 // Requires current password validation.
-func (s *AuthService) RequestEmailChange(ctx context.Context, userID uuid.UUID, newEmail string, password string) (string, error) {
+func (s *AuthService) RequestEmailChange(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID, newEmail string, password string) (string, error) {
 	// 1. Verify User & Password
-	user, err := s.queries.GetUserByID(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+	user, err := s.queries.GetUserByID(ctx, db.GetUserByIDParams{
+		ID:       pgtype.UUID{Bytes: userID, Valid: true},
+		TenantID: pgtype.UUID{Bytes: tenantID, Valid: true},
+	})
 	if err != nil {
 		return "", ErrUserNotFound
 	}
@@ -129,9 +133,12 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID uuid.UUID, fullN
 }
 
 // ChangePassword updates the user's password and revokes all active sessions.
-func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error {
+func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID, oldPassword, newPassword string) error {
 	// 1. Verify Old Password
-	user, err := s.queries.GetUserByID(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+	user, err := s.queries.GetUserByID(ctx, db.GetUserByIDParams{
+		ID:       pgtype.UUID{Bytes: userID, Valid: true},
+		TenantID: pgtype.UUID{Bytes: tenantID, Valid: true},
+	})
 	if err != nil {
 		return err
 	}

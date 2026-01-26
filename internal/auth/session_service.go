@@ -110,9 +110,11 @@ func (s *AuthService) RefreshSession(ctx context.Context, refreshToken string, i
 	// Need to fetch user to get latest role/tenant? Or use token data?
 	// Using stored UserID. TenantID is in RefreshToken (inherited).
 	// 6. Generate New Access Token
-	// Need to fetch user to get latest role/tenant? Or use token data?
 	// Using stored UserID. TenantID is in RefreshToken (inherited).
-	user, err := s.queries.GetUserByID(ctx, token.UserID)
+	user, err := s.queries.GetUserByID(ctx, db.GetUserByIDParams{
+		ID:       token.UserID,
+		TenantID: token.TenantID,
+	})
 	if err != nil {
 		return nil, ErrUserNotFound
 	}

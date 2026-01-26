@@ -114,13 +114,13 @@ type User struct {
 	PasswordHash        pgtype.Text
 	FullName            pgtype.Text
 	IsEmailVerified     bool
-	DefaultTenantID     pgtype.UUID
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	MfaSecret           pgtype.Text
 	MfaEnabled          bool
 	FailedLoginAttempts int32
 	LockedUntil         pgtype.Timestamptz
+	TenantID            pgtype.UUID
 }
 
 type VerificationToken struct {

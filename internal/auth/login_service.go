@@ -17,6 +17,7 @@ import (
 type LoginInput struct {
 	Email     string
 	Password  string
+	TenantID  uuid.UUID // Enforced by Anti-Gravity Law: Users are Tenant-Scoped
 	IP        net.IP
 	UserAgent string
 }
@@ -31,8 +32,15 @@ type LoginResult struct {
 }
 
 func (s *AuthService) Login(ctx context.Context, input LoginInput) (*LoginResult, error) {
-	// 1. Find User by Email
-	user, err := s.queries.GetUserByEmail(ctx, input.Email)
+	// 1. Find User by Email (Strictly Scoped to Tenant)
+	if input.TenantID == uuid.Nil {
+		return nil, ErrTenantRequired
+	}
+
+	user, err := s.queries.GetUserByEmail(ctx, db.GetUserByEmailParams{
+		Email:    input.Email,
+		TenantID: pgtype.UUID{Bytes: input.TenantID, Valid: true},
+	})
 	if err != nil {
 		// Use a generic error to prevent user enumeration
 		return nil, ErrInvalidCredentials
@@ -120,7 +128,7 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*LoginResult
 }
 
 // VerifyLoginBackupCode allows login via recovery code.
-func (s *AuthService) VerifyLoginBackupCode(ctx context.Context, preAuthToken string, code string, ip net.IP, userAgent string) (*LoginResult, error) {
+func (s *AuthService) VerifyLoginBackupCode(ctx context.Context, preAuthToken string, code string, tenantID uuid.UUID, ip net.IP, userAgent string) (*LoginResult, error) {
 	// 1. Validate Pre-Auth Token (Phase 35 Hardening)
 	claims, err := s.tokenProvider.ValidateToken(preAuthToken)
 	if err != nil {
@@ -148,7 +156,10 @@ func (s *AuthService) VerifyLoginBackupCode(ctx context.Context, preAuthToken st
 	}
 
 	// Issue Tokens (Success)
-	user, _ := s.queries.GetUserByID(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+	user, _ := s.queries.GetUserByID(ctx, db.GetUserByIDParams{
+		ID:       pgtype.UUID{Bytes: userID, Valid: true},
+		TenantID: pgtype.UUID{Bytes: tenantID, Valid: true},
+	})
 
 	tenantID, role, err := s.resolveTenantAndRole(ctx, user)
 	if err != nil {
@@ -202,7 +213,7 @@ func (s *AuthService) VerifyLoginBackupCode(ctx context.Context, preAuthToken st
 
 // VerifyLoginMFA completes the login for MFA-enabled users.
 // NOW REQUIRES Pre-Auth Token (Phase 35 Hardening).
-func (s *AuthService) VerifyLoginMFA(ctx context.Context, preAuthToken string, code string, ip net.IP, userAgent string) (*LoginResult, error) {
+func (s *AuthService) VerifyLoginMFA(ctx context.Context, preAuthToken string, code string, tenantID uuid.UUID, ip net.IP, userAgent string) (*LoginResult, error) {
 	// 1. Validate Pre-Auth Token
 	claims, err := s.tokenProvider.ValidateToken(preAuthToken)
 	if err != nil {
@@ -214,7 +225,10 @@ func (s *AuthService) VerifyLoginMFA(ctx context.Context, preAuthToken string, c
 	userID := claims.UserID
 
 	// 2. Lookup User
-	user, err := s.queries.GetUserByID(ctx, pgtype.UUID{Bytes: userID, Valid: true})
+	user, err := s.queries.GetUserByID(ctx, db.GetUserByIDParams{
+		ID:       pgtype.UUID{Bytes: userID, Valid: true},
+		TenantID: pgtype.UUID{Bytes: tenantID, Valid: true},
+	})
 	if err != nil {
 		return nil, ErrUserNotFound
 	}
