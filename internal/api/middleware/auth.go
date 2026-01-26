@@ -28,10 +28,17 @@ func AuthMiddleware(provider auth.TokenProvider) func(http.Handler) http.Handler
 			tokenStr := parts[1]
 			claims, err := provider.ValidateToken(tokenStr)
 			if err != nil {
-				slog.Warn("Invalid Token", "error", err, "ip", r.RemoteAddr)
+				// Anti-Gravity Debugging: Log exact validation error
+				slog.Warn("AuthMiddleware: Token Validation Failed",
+					"error", err,
+					"token_prefix", tokenStr[:10]+"...",
+					"ip", r.RemoteAddr,
+				)
 				http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
 				return
 			}
+			// Log successful validation for debugging
+			slog.Info("AuthMiddleware: Token Validated", "user_id", claims.UserID, "scope", claims.Scope, "tid", claims.TenantID)
 
 			// Tenant Context Check
 			// If X-Tenant-ID header was provided (handled by previous TenantContext middleware),
