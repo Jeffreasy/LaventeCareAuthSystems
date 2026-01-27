@@ -81,6 +81,14 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 		r.Post("/auth/logout", authHandler.Logout)
 		r.Post("/auth/refresh", authHandler.Refresh) // ✅ Token refresh endpoint
 
+		// Password Recovery (Public)
+		r.Post("/auth/password/forgot", authHandler.RequestPasswordReset)
+		r.Post("/auth/password/reset", authHandler.ResetPassword)
+
+		// Email Verification (Public)
+		r.Post("/auth/email/resend", authHandler.ResendVerification)
+		r.Post("/auth/email/verify", authHandler.VerifyEmail)
+
 		// IoT Telemetry (Gatekeeper)
 		r.Post("/iot/telemetry", iotHandler.HandleTelemetry)
 
@@ -142,6 +150,9 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 				// CORS Management (Security)
 				r.Get("/cors-origins", authHandler.GetTenantConfig)
 				r.Put("/cors-origins", authHandler.UpdateCORSOrigins)
+
+				// Audit Logs (Compliance)
+				r.Get("/audit-logs", authHandler.ListAuditLogs)
 			})
 		})
 	})

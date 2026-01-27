@@ -240,6 +240,11 @@ if err != nil {
 | `POST` | `/api/v1/auth/register` | User registration | `X-Tenant-ID` | 5/15min |
 | `POST` | `/api/v1/auth/login` | User login | `X-Tenant-ID` | 5/15min |
 | `POST` | `/api/v1/auth/logout` | Logout (clears cookies) | `X-Tenant-ID` | 10/1min |
+| `POST` | `/api/v1/auth/refresh` | Refresh access token | None (uses cookie) | 10/1min |
+| `POST` | `/api/v1/auth/password/forgot` | Request password reset email | `X-Tenant-ID` | 3/1hour |
+| `POST` | `/api/v1/auth/password/reset` | Complete password reset with token | None | 3/1hour |
+| `POST` | `/api/v1/auth/email/resend` | Resend verification email | `X-Tenant-ID` | 3/1hour |
+| `POST` | `/api/v1/auth/email/verify` | Verify email with token | None | 5/1hour |
 | `POST` | `/api/v1/auth/mfa/verify` | Verify MFA code | `X-Tenant-ID` | 3/5min |
 | `GET` | `/api/v1/tenants/{slug}` | Get tenant info by slug | None | 100/1min |
 | `GET` | `/.well-known/openid-configuration` | OIDC config | None | 100/1min |
@@ -273,6 +278,7 @@ if err != nil {
 | `GET` | `/api/v1/admin/email-stats` | Email delivery stats | 100/1min |
 | `GET` | `/api/v1/admin/cors-origins` | Get allowed CORS origins | 10/1min |
 | `PUT` | `/api/v1/admin/cors-origins` | Update CORS origins (validates wildcard) | 5/1hour |
+| `GET` | `/api/v1/admin/audit-logs` | View audit trail (pagination) | 100/1min |
 
 ### IoT Telemetry Endpoint
 
