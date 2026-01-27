@@ -138,6 +138,10 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 				r.Post("/mail-config", authHandler.UpdateMailConfig)
 				r.Delete("/mail-config", authHandler.DeleteMailConfig)
 				r.Get("/email-stats", authHandler.GetEmailStats)
+
+				// CORS Management (Security)
+				r.Get("/cors-origins", authHandler.GetTenantConfig)
+				r.Put("/cors-origins", authHandler.UpdateCORSOrigins)
 			})
 		})
 	})

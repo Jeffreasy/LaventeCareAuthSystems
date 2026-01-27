@@ -51,11 +51,15 @@ The backend uses a **Dual-Token** system for maximum security:
      X-Tenant-ID: <your-tenant-uuid>
      ```
    - **Response:**
-     - **JSON Body:** 
+     - **Status:** `200 OK`
+     - **Headers:**
+       ```
+       Set-Cookie: access_token=<jwt>; HttpOnly; Secure; SameSite=Strict; MaxAge=900
+       Set-Cookie: refresh_token=<opaque>; HttpOnly; Secure; SameSite=Strict; MaxAge=604800; Path=/api/v1/auth
+       ```
+     - **JSON Body (tokens NOT included for XSS protection):**
        ```json
        {
-         "access_token": "eyJhbGc...",
-         "refresh_token": "opaque-token-123",
          "user": {
            "id": "uuid",
            "email": "user@example.com",
@@ -64,17 +68,17 @@ The backend uses a **Dual-Token** system for maximum security:
          }
        }
        ```
-     - **Cookies (HttpOnly, Secure):**
-       - `access_token` (MaxAge: 15 min)
-       - `refresh_token` (MaxAge: 7 days)
+     - **⚠️ IMPORTANT:** Tokens are ONLY returned via `Set-Cookie` headers
+     - **❌ DO NOT** try to access `response.access_token` - it doesn't exist in JSON
 
 2. **Protected Requests**
-   - **Client-Side:** Use `Authorization: Bearer <access_token>` header
+   - **Client-Side:** Use `credentials: 'include'` to send cookies automatically
    - **Server-Side (SSR):** Cookies are automatically included
+   - **❌ DO NOT** manually add Authorization header - cookies handle this
 
 3. **Token Refresh** (`POST /api/v1/auth/refresh`)
-   - Automatically uses `refresh_token` cookie
-   - Returns new `access_token` + `refresh_token` pair
+   - Automatically uses `refresh_token` cookie (no request body needed)
+   - Returns new tokens via `Set-Cookie` headers
    - **Call this when you get 401 Unauthorized**
 
 ---
@@ -248,7 +252,6 @@ if err != nil {
 | `GET` | `/api/v1/me` | Get current user profile | Any | 100/1min |
 | `GET` | `/api/v1/auth/sessions` | List active sessions | Any | 10/1min |
 | `DELETE` | `/api/v1/auth/sessions/{id}` | Revoke session | Any | 10/1min |
-| `DELETE` | `/api/v1/auth/sessions/all` | **Revoke all other sessions** | Any | 5/1min |
 | `POST` | `/api/v1/auth/mfa/setup` | Setup MFA | Any | 3/5min |
 | `POST` | `/api/v1/auth/mfa/activate` | Activate MFA | Any | 3/5min |
 | `PATCH` | `/api/v1/auth/profile` | Update profile | Any | 10/1min |
@@ -268,6 +271,8 @@ if err != nil {
 | `POST` | `/api/v1/admin/mail-config` | Update SMTP config | 5/1hour |
 | `DELETE` | `/api/v1/admin/mail-config` | Remove SMTP config | 5/1hour |
 | `GET` | `/api/v1/admin/email-stats` | Email delivery stats | 100/1min |
+| `GET` | `/api/v1/admin/cors-origins` | Get allowed CORS origins | 10/1min |
+| `PUT` | `/api/v1/admin/cors-origins` | Update CORS origins (validates wildcard) | 5/1hour |
 
 ### IoT Telemetry Endpoint
 
