@@ -79,6 +79,7 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 		r.Post("/auth/register", authHandler.Register)
 		r.Post("/auth/login", authHandler.Login)
 		r.Post("/auth/logout", authHandler.Logout)
+		r.Post("/auth/refresh", authHandler.Refresh) // ✅ Token refresh endpoint
 
 		// IoT Telemetry (Gatekeeper)
 		r.Post("/iot/telemetry", iotHandler.HandleTelemetry)
