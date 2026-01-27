@@ -52,7 +52,7 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 	requireRBAC := customMiddleware.RBACMiddleware()
 
 	// Handlers
-	authHandler := NewAuthHandler(authService)
+	authHandler := NewAuthHandler(authService, pool, slog.Default())
 	iotHandler := NewIoTHandler(queries)
 
 	// Initialize server early to use its methods
@@ -131,6 +131,12 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 
 				// Invite User (Phase 16)
 				r.Post("/users/invite", authHandler.InviteUser)
+
+				// Mail Configuration Management (Email Gateway)
+				r.Get("/mail-config", authHandler.GetMailConfig)
+				r.Post("/mail-config", authHandler.UpdateMailConfig)
+				r.Delete("/mail-config", authHandler.DeleteMailConfig)
+				r.Get("/email-stats", authHandler.GetEmailStats)
 			})
 		})
 	})

@@ -9,29 +9,46 @@ import (
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/auth"
 )
 
+// extractJWT extracts JWT token from request using cookie-first strategy.
+// Priority 1: HttpOnly cookie (secure, XSS-immune)
+// Priority 2: Authorization header (legacy support)
+//
+// ✅ SECURE: Cookie-based extraction protects against XSS attacks
+// as HttpOnly cookies cannot be accessed by JavaScript.
+func extractJWT(r *http.Request) string {
+	// Priority 1: Check for access_token cookie (SECURE)
+	if cookie, err := r.Cookie("access_token"); err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+
+	// Priority 2: Fallback to Authorization header (LEGACY)
+	authHeader := r.Header.Get("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return strings.TrimPrefix(authHeader, "Bearer ")
+	}
+
+	return ""
+}
+
 // AuthMiddleware creates a handler that validates JWT tokens.
+// Supports both HttpOnly cookie-based auth (preferred) and Authorization header (legacy).
 func AuthMiddleware(provider auth.TokenProvider) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				http.Error(w, "Authorization header required", http.StatusUnauthorized)
+			// ✅ Extract token using cookie-first strategy
+			tokenStr := extractJWT(r)
+			if tokenStr == "" {
+				http.Error(w, "Authentication required", http.StatusUnauthorized)
 				return
 			}
 
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
-				return
-			}
-
-			tokenStr := parts[1]
+			// Validate token
 			claims, err := provider.ValidateToken(tokenStr)
 			if err != nil {
 				// Anti-Gravity Debugging: Log exact validation error
 				slog.Warn("AuthMiddleware: Token Validation Failed",
 					"error", err,
-					"token_prefix", tokenStr[:10]+"...",
+					"token_prefix", tokenStr[:min(10, len(tokenStr))]+"...",
 					"ip", r.RemoteAddr,
 				)
 				http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
@@ -40,10 +57,6 @@ func AuthMiddleware(provider auth.TokenProvider) func(http.Handler) http.Handler
 			// Log successful validation for debugging
 			slog.Info("AuthMiddleware: Token Validated", "user_id", claims.UserID, "scope", claims.Scope, "tid", claims.TenantID)
 
-			// Tenant Context Check
-			// If X-Tenant-ID header was provided (handled by previous TenantContext middleware),
-			// we MUST ensure the token grants access to THAT tenant.
-			// "Anti-Gravity Law: Strict Scoping"
 			// Tenant Context Check
 			// If X-Tenant-ID header was provided (handled by previous TenantContext middleware),
 			// we MUST ensure the token grants access to THAT tenant.
@@ -76,4 +89,12 @@ func AuthMiddleware(provider auth.TokenProvider) func(http.Handler) http.Handler
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

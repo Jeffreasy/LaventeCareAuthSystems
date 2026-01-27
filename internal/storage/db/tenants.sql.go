@@ -17,7 +17,7 @@ INSERT INTO tenants (
     name, slug, secret_key_hash, allowed_origins, redirect_urls, branding, settings, app_url
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8
-) RETURNING id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url
+) RETURNING id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version
 `
 
 type CreateTenantParams struct {
@@ -57,12 +57,14 @@ func (q *Queries) CreateTenant(ctx context.Context, arg CreateTenantParams) (Ten
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AppUrl,
+		&i.MailConfig,
+		&i.MailConfigKeyVersion,
 	)
 	return i, err
 }
 
 const getTenantByID = `-- name: GetTenantByID :one
-SELECT id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url FROM tenants
+SELECT id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version FROM tenants
 WHERE id = $1 LIMIT 1
 `
 
@@ -83,12 +85,14 @@ func (q *Queries) GetTenantByID(ctx context.Context, id pgtype.UUID) (Tenant, er
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AppUrl,
+		&i.MailConfig,
+		&i.MailConfigKeyVersion,
 	)
 	return i, err
 }
 
 const getTenantByPublicKey = `-- name: GetTenantByPublicKey :one
-SELECT id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url FROM tenants
+SELECT id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version FROM tenants
 WHERE public_key = $1 LIMIT 1
 `
 
@@ -109,12 +113,14 @@ func (q *Queries) GetTenantByPublicKey(ctx context.Context, publicKey pgtype.UUI
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AppUrl,
+		&i.MailConfig,
+		&i.MailConfigKeyVersion,
 	)
 	return i, err
 }
 
 const getTenantBySlug = `-- name: GetTenantBySlug :one
-SELECT id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url FROM tenants
+SELECT id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version FROM tenants
 WHERE slug = $1 LIMIT 1
 `
 
@@ -135,6 +141,8 @@ func (q *Queries) GetTenantBySlug(ctx context.Context, slug string) (Tenant, err
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AppUrl,
+		&i.MailConfig,
+		&i.MailConfigKeyVersion,
 	)
 	return i, err
 }
@@ -166,7 +174,7 @@ SET
     updated_at = NOW(),
     app_url = $6
 WHERE id = $1
-RETURNING id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url
+RETURNING id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version
 `
 
 type UpdateTenantConfigParams struct {
@@ -202,6 +210,8 @@ func (q *Queries) UpdateTenantConfig(ctx context.Context, arg UpdateTenantConfig
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.AppUrl,
+		&i.MailConfig,
+		&i.MailConfigKeyVersion,
 	)
 	return i, err
 }

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"net/http"
 )
@@ -39,7 +40,7 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 		// 2. Validate Header for Unsafe Methods
 		if r.Method == "POST" || r.Method == "PUT" || r.Method == "DELETE" || r.Method == "PATCH" {
 			headerToken := r.Header.Get("X-CSRF-Token")
-			if headerToken == "" || headerToken != token {
+			if headerToken == "" || !SecureCompareCSRFTokens(headerToken, token) {
 				http.Error(w, "CSRF Token Mismatch", http.StatusForbidden)
 				return
 			}
@@ -55,4 +56,15 @@ func generateRandomString(n int) (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// SecureCompareCSRFTokens performs a constant-time comparison of CSRF tokens.
+// This prevents timing attacks where an attacker could measure response times
+// to guess valid CSRF tokens.
+//
+// ✅ SECURE: Uses crypto/subtle.ConstantTimeCompare
+func SecureCompareCSRFTokens(provided, expected string) bool {
+	providedBytes := []byte(provided)
+	expectedBytes := []byte(expected)
+	return subtle.ConstantTimeCompare(providedBytes, expectedBytes) == 1
 }

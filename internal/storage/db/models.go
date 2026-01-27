@@ -5,6 +5,7 @@
 package db
 
 import (
+	"encoding/json"
 	"net"
 	"net/netip"
 
@@ -35,6 +36,41 @@ type EmailChangeRequest struct {
 	UsedAt    pgtype.Timestamptz
 	ExpiresAt pgtype.Timestamptz
 	CreatedAt pgtype.Timestamptz
+}
+
+// Audit trail for all email delivery attempts. Privacy-compliant: stores recipient hashes, not raw emails.
+type EmailLog struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	// SHA256 hash of recipient email (GDPR pseudonymization)
+	RecipientHash string
+	TemplateType  string
+	Status        string
+	// External SMTP provider message ID for tracking
+	ProviderMsgID pgtype.Text
+	ProviderError pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	SentAt        pgtype.Timestamptz
+	RetryCount    int32
+	LastRetryAt   pgtype.Timestamptz
+}
+
+// Async email queue processed by background worker. Enables retry logic and prevents SMTP timeouts from blocking HTTP requests.
+type EmailOutbox struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	// Serialized EmailPayload (JSONB). Contains recipient, template, and data.
+	Payload    json.RawMessage
+	Status     string
+	RetryCount int32
+	MaxRetries int32
+	// When to retry sending (exponential backoff). NULL means immediate retry.
+	NextRetryAt         pgtype.Timestamptz
+	LastError           pgtype.Text
+	CreatedAt           pgtype.Timestamptz
+	ProcessingStartedAt pgtype.Timestamptz
+	ProcessedAt         pgtype.Timestamptz
+	EmailLogID          pgtype.UUID
 }
 
 type Invitation struct {
@@ -102,6 +138,26 @@ type Tenant struct {
 	RedirectUrls   []string
 	Branding       domain.TenantBranding
 	Settings       domain.TenantSettings
+	IsActive       bool
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	AppUrl         string
+	// SENSITIVE: Tenant-specific SMTP configuration with encrypted password. Only backend worker should read this. Use tenants_safe view for general queries.
+	MailConfig []byte
+	// Encryption key version for password rotation. Used by crypto.DecryptTenantSecretV().
+	MailConfigKeyVersion pgtype.Int4
+}
+
+// Security barrier view that excludes mail_config. Use this for frontend/API queries.
+type TenantsSafe struct {
+	ID             pgtype.UUID
+	Name           string
+	Slug           string
+	PublicKey      pgtype.UUID
+	AllowedOrigins []string
+	RedirectUrls   []string
+	Branding       []byte
+	Settings       []byte
 	IsActive       bool
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz

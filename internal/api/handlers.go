@@ -1,18 +1,26 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/auth"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // AuthHandler wraps the AuthService and provides HTTP handlers.
 type AuthHandler struct {
 	service *auth.AuthService
+	Pool    *pgxpool.Pool // For direct queries (mail config)
+	Logger  *slog.Logger
 }
 
-func NewAuthHandler(service *auth.AuthService) *AuthHandler {
-	return &AuthHandler{service: service}
+func NewAuthHandler(service *auth.AuthService, pool *pgxpool.Pool, logger *slog.Logger) *AuthHandler {
+	return &AuthHandler{
+		service: service,
+		Pool:    pool,
+		Logger:  logger,
+	}
 }
 
 func (h *AuthHandler) clearCookies(w http.ResponseWriter) {

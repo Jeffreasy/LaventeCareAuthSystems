@@ -136,9 +136,33 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// ✅ SECURE: Set HttpOnly cookies (XSS protection)
+	// Tokens are NEVER exposed to JavaScript
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    result.AccessToken,
+		Path:     "/",
+		MaxAge:   900, // 15 min
+		HttpOnly: true,
+		Secure:   true, // Requires HTTPS
+		SameSite: http.SameSiteStrictMode,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    result.RefreshToken,
+		Path:     "/api/v1/auth",
+		MaxAge:   604800, // 7 days
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	// ✅ Return user data only (NO tokens in JSON)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"user": result.User,
+	})
 }
 
 // Refresh Token (Silent Refresh)
