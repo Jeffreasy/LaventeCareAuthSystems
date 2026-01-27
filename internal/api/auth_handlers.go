@@ -11,7 +11,26 @@ import (
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/api/helpers"
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/api/middleware"
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/auth"
+	"github.com/google/uuid"
 )
+
+// MeResponse defines the strictly typed response for /me endpoint.
+type MeResponse struct {
+	User   MeUser   `json:"user"`
+	Tenant MeTenant `json:"tenant"`
+}
+
+type MeUser struct {
+	ID       uuid.UUID `json:"id"`
+	Email    string    `json:"email"`
+	FullName string    `json:"full_name"`
+	Role     string    `json:"role"`
+}
+
+type MeTenant struct {
+	ID   uuid.UUID `json:"id"`
+	Slug string    `json:"slug"`
+}
 
 // RegisterRequest defines the expected JSON body for registration.
 type RegisterRequest struct {
@@ -266,4 +285,46 @@ func (h *AuthHandler) GetJWKS(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(jwks)
+}
+
+// Me returns the strictly typed Session Rehydration data (Who Am I).
+// Security: Enforces strict Tenant Isolation via Middleware & Service Layer.
+func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
+	// 1. Extract IDs from Context (strictly typed)
+	userID, err := middleware.GetUserID(r.Context())
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	tenantID, err := middleware.GetTenantID(r.Context())
+	if err != nil {
+		http.Error(w, "Tenant Context Required", http.StatusBadRequest)
+		return
+	}
+
+	// 2. Query via Service (Strict Isolation)
+	ctxInfo, err := h.service.GetUserContext(r.Context(), userID, tenantID)
+	if err != nil {
+		slog.Warn("Me: Context lookup failed", "user", userID, "tenant", tenantID, "error", err)
+		http.Error(w, "Session invalid for this context", http.StatusUnauthorized)
+		return
+	}
+
+	// 3. Return Strict Response
+	response := MeResponse{
+		User: MeUser{
+			ID:       uuid.UUID(ctxInfo.ID.Bytes),
+			Email:    ctxInfo.Email,
+			FullName: ctxInfo.FullName.String, // Handle pgtype.Text safely
+			Role:     ctxInfo.Role,
+		},
+		Tenant: MeTenant{
+			ID:   uuid.UUID(ctxInfo.TenantID.Bytes),
+			Slug: ctxInfo.TenantSlug,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
