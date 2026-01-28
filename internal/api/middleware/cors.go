@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/storage/db"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -58,17 +59,24 @@ func DynamicCorsMiddleware(q CorsConfigProvider) func(http.Handler) http.Handler
 			}
 
 			// Actual Request: Validate Origin against Tenant Config
-			tenantID, err := GetTenantID(r.Context())
-			if err != nil {
-				// No Tenant ID? If it's a public endpoint, maybe allow?
-				// For "Anti-Gravity", if no tenant, maybe default strict?
-				// User requirements imply this is for "Astro App" clients vs existing API.
-				// We'll fallback to strict (reject) or Reflect if it's the Main Portal?
-				// Let's Log and Reject for now to be safe, or allow if it matches System Origin (todo).
-				// Logic: If no tenant header, we can't validate against tenant config.
-				// Check if the route allows anonymous?
-				// We'll proceed but NOT set CORS headers, effectively blocking browser clients.
+			// FIX: TenantContext (Phase 50) runs AFTER this (Phase 99).
+			// We cannot rely on GetTenantID(ctx) being populated yet.
+			// We MUST extract the header manually here for the DB lookup.
+			tenantIDStr := r.Header.Get("X-Tenant-ID")
+
+			if tenantIDStr == "" {
+				// No Tenant ID?
+				// If strictly following Anti-Gravity, we cannot validate origin without knowing the tenant.
+				// We proceed without setting CORS headers (Browser blocks).
 				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Validate UUID syntax
+			tenantID, err := uuid.Parse(tenantIDStr)
+			if err != nil {
+				slog.Warn("CORS: Invalid X-Tenant-ID Header", "value", tenantIDStr, "ip", r.RemoteAddr)
+				http.Error(w, "Invalid Tenant ID", http.StatusBadRequest)
 				return
 			}
 

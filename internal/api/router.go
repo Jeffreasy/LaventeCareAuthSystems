@@ -16,12 +16,13 @@ import (
 type Server struct {
 	Router *chi.Mux
 	DB     *db.Queries
-	Pool   *pgxpool.Pool // Database connection pool for health checks
+	Pool   *pgxpool.Pool
 	Auth   *auth.AuthService
+	IoT    *auth.IoTService
 	Logger *slog.Logger
 }
 
-func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthService, tokenProvider auth.TokenProvider) *Server {
+func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthService, tokenProvider auth.TokenProvider, iotService *auth.IoTService) *Server {
 	r := chi.NewRouter()
 
 	// 1. Core Middleware
@@ -57,7 +58,7 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 
 	// Handlers
 	authHandler := NewAuthHandler(authService, pool, slog.Default())
-	iotHandler := NewIoTHandler(queries)
+	iotHandler := NewIoTHandler(iotService)
 
 	// Initialize server early to use its methods
 	server := &Server{

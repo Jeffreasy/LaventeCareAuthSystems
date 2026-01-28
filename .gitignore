@@ -1,7 +1,10 @@
 # Added by generate-secrets.ps1
 .env.local
 
-# Binaries
+# Binaries & Artifacts
+/bin/
+/firmware/
+/tools/debug_*/
 *.exe
 *.dll
 test_output.txt

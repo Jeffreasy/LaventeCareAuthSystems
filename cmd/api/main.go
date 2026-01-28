@@ -16,9 +16,16 @@ import (
 	"github.com/Jeffreasy/LaventeCareAuthSystems/pkg/logger"
 	"github.com/getsentry/sentry-go"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// 0. Load Configuration (Dev/Local)
+	// We mask errors because in Production (Render), these files might not exist
+	// and we rely on system env vars.
+	_ = godotenv.Load(".env.local")
+	_ = godotenv.Load()
+
 	env := os.Getenv("APP_ENV")
 	if env == "" {
 		env = "development"
@@ -81,7 +88,11 @@ func main() {
 	// In production, load JWT Private Key from env var (PEM format)
 	jwtPrivateKey := os.Getenv("JWT_PRIVATE_KEY")
 	if jwtPrivateKey == "" {
-		log.Warn("jwt_private_key_missing", "details", "server_may_panic_on_token_gen")
+		if env == "production" {
+			log.Error("jwt_private_key_missing", "details", "fatal_in_production")
+			os.Exit(1)
+		}
+		log.Warn("jwt_private_key_missing", "details", "dev_mode_unsafe")
 		// Optional: Fallback to a hardcoded dev key (NOT RECOMMENDED for RS256 without generic file)
 		// For now, we allow the provider to panic if key is invalid, or fail fast.
 	}
@@ -109,9 +120,22 @@ func main() {
 
 	authService := auth.NewAuthService(authConfig, pool, queries, hasher, tokenProvider, mfaService, auditLogger, emailSender)
 
+	// IoT Service (Centralized Config)
+	iotConfig := auth.IoTConfig{
+		ConvexURL:       os.Getenv("CONVEX_WEBHOOK_URL"),
+		ConvexDeployKey: os.Getenv("CONVEX_DEPLOY_KEY"),
+	}
+	if iotConfig.ConvexURL == "" {
+		// Fallback for development/testing if not set
+		log.Warn("convex_url_missing", "details", "using_default")
+		iotConfig.ConvexURL = "https://dynamic-schnauzer-274.convex.site/api/gatekeeper/ingest"
+	}
+
+	iotService := auth.NewIoTService(queries, iotConfig)
+
 	// 6. Setup HTTP Server
 	// PHASE 50 RLS: Pool is now passed to NewServer for RLS middleware integration
-	server := api.NewServer(pool, queries, authService, tokenProvider)
+	server := api.NewServer(pool, queries, authService, tokenProvider, iotService)
 
 	port := os.Getenv("PORT")
 	if port == "" {
