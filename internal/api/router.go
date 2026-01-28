@@ -38,12 +38,13 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 	r.Use(customMiddleware.RequestLogger) // Our custom slog logger
 	r.Use(customMiddleware.PanicRecovery) // Custom recovery with Sentry support
 
-	// 4. Active Defense Middlewares
-	limiter := customMiddleware.NewIPRateLimiter(5, 10) // 5 RPS, Burst 10
-	r.Use(limiter.Middleware)
-
-	// PHASE 99: CORS - Applied globally to handle Preflight (OPTIONS)
+	// PHASE 99: CORS - Applied globally and EARLY to handle Preflight (OPTIONS)
+	// MUST be before Rate Limiter so 429 responses get CORS headers
 	r.Use(customMiddleware.DynamicCorsMiddleware(queries))
+
+	// 4. Active Defense Middlewares
+	limiter := customMiddleware.NewIPRateLimiter(25, 50) // 25 RPS, Burst 50 (Increased for Dashboard/Convex)
+	r.Use(limiter.Middleware)
 
 	// PHASE 50 RLS: TenantContext now requires pool for SET LOCAL transaction wrapping
 	r.Use(customMiddleware.TenantContext(pool))
