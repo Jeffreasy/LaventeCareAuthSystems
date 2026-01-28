@@ -163,15 +163,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// ✅ SECURE: Set HttpOnly cookies (XSS protection)
 	// Tokens are NEVER exposed to JavaScript
-	// CONFIG: Relaxed for Localhost Development (HTTP)
+	// CONFIG: Cross-Origin Support (Localhost -> Render) requires SameSite=None; Secure
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    result.AccessToken,
 		Path:     "/",
 		MaxAge:   900, // 15 min
 		HttpOnly: true,
-		Secure:   false,                // Changed to False for Localhost (HTTP)
-		SameSite: http.SameSiteLaxMode, // Changed to Lax for Redirects
+		Secure:   true,                  // Required for SameSite=None
+		SameSite: http.SameSiteNoneMode, // Required for Cross-Origin AJAX
 	})
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
@@ -179,8 +179,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   604800, // 7 days
 		HttpOnly: true,
-		Secure:   false, // Changed to False for Localhost (HTTP)
-		SameSite: http.SameSiteLaxMode,
+		Secure:   true,                  // Required for SameSite=None
+		SameSite: http.SameSiteNoneMode, // Required for Cross-Origin AJAX
 	})
 
 	// ✅ Return user data only (NO tokens in JSON)
@@ -222,8 +222,8 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   900, // 15 min
 		HttpOnly: true,
-		Secure:   false, // Relaxed
-		SameSite: http.SameSiteLaxMode,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
 	})
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
@@ -231,8 +231,8 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   604800, // 7 days
 		HttpOnly: true,
-		Secure:   false, // Relaxed
-		SameSite: http.SameSiteLaxMode,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	// 5. Return Access Token (for memory client)
