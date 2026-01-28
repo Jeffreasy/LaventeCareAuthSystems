@@ -9,11 +9,11 @@ import (
 	"slices"
 
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/storage/db"
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type CorsConfigProvider interface {
-	GetTenantConfig(ctx context.Context, id uuid.UUID) (db.GetTenantConfigRow, error)
+	GetTenantConfig(ctx context.Context, id pgtype.UUID) (db.GetTenantConfigRow, error)
 }
 
 // DynamicCorsMiddleware enforces Tenant-specific CORS policies.
@@ -57,7 +57,7 @@ func DynamicCorsMiddleware(q CorsConfigProvider) func(http.Handler) http.Handler
 			// Fetch Config
 			// Use r.Context() which might have timeout attached upstream?
 			// Use a detached context for DB check to avoid canceling on client disconnect during check? No, standard ctx is fine.
-			config, err := q.GetTenantConfig(r.Context(), tenantID)
+			config, err := q.GetTenantConfig(r.Context(), pgtype.UUID{Bytes: tenantID, Valid: true})
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					// Invalid Tenant ID was passed (though TenantContext validated UUID syntax)
