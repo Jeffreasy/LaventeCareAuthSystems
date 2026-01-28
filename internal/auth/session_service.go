@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/audit"
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/storage/db"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -15,35 +16,25 @@ import (
 // Logout revokes the refresh token family, effectively killing the session on all devices sharing that family.
 // In a stricter mode, we might blacklist the Access Token ID (jti) in Redis until expiry.
 func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
-	// We assume the refresh token string *is* the family ID or contains it.
-	// However, current implementation of Login just returns "TODO..."
-	// For this Phase, we define the signature. The DB params require FamilyID and TenantID.
-
-	// Real implementation would:
-	// 1. Decode Refresh Token (if it's JWT) or Lookup Opaque Token to get Family ID.
-	// 2. Call s.queries.RevokeRefreshTokenFamily(...)
-
-	// With the new "Nuclear Option" query, we just pass the hash
 	hashed := hashToken(refreshToken)
 
-	// AUDIT LOG (Best effort, we don't have UserID here easily unless we fetch token first)
-	// But `RevokeTokenFamily` is void.
-	// We should probably log this action.
-	// Since we don't have UserID, ActorID is Nil or from Context if we extract it?
-	// s.audit.Log(ctx, "auth.session.revoke", ...)
-	// Let's rely on Middleware to set Context UserID if authenticated?
-	// Logout endpoint often handles unauthenticated if just revoking token?
-	// Actually `Logout` in `api` likely extracts UserID from Access Token.
-	// Let's assume Context has it or we skip strictly connecting ActorID here for MVP if difficult.
-	// But wait, the params require `refreshToken`.
-	// Ideally we fetch the token to know WHO it belongs to before revoking, for the log?
-	// `RevokeTokenFamily` deletes it (or marks revoked).
-	// Let's skip heavy logic. If we want to log, we should do it at API layer or if we fetch token.
-	// Decision: Skip Audit in Service Logout for now to avoid DB roundtrip just for logging,
-	// UNLESS "Silence is Golden" implies we should log security events.
-	// Revocation IS a security event.
-	// I will fetch token first? No, that's expensive.
-	// I will just return. The API layer logs HTTP request.
+	// Enhancement: Fetch token to identify user for Audit Logging
+	// We perform a lookup before revocation to capture WHO is logging out.
+	token, err := s.queries.GetRefreshToken(ctx, hashed)
+	if err == nil {
+		// Found token, log the event
+		s.audit.Log(ctx, "auth.logout", audit.LogParams{
+			ActorID:  token.UserID.Bytes,
+			TargetID: token.UserID.Bytes,
+			TenantID: token.TenantID.Bytes,
+			Metadata: map[string]interface{}{
+				"method":    "token_revocation",
+				"family_id": token.FamilyID.Bytes,
+			},
+		})
+	}
+
+	// Always attempt revocation (Idempotent / Silence is Golden)
 	return s.queries.RevokeTokenFamily(ctx, hashed)
 }
 
