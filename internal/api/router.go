@@ -109,7 +109,8 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 			r.Use(customMiddleware.CSRFMiddleware) // Apply CSRF to authenticated routes only
 
 			// Example: User Profile (Self)
-			r.Get("/auth/me", authHandler.Me) // Updated to /auth/me for consistency with frontend
+			r.Get("/auth/me", authHandler.Me)          // Updated to /auth/me for consistency with frontend
+			r.Get("/auth/token", authHandler.GetToken) // ✅ Token exposure for Convex
 
 			// Session Management (Phase 17)
 			r.Get("/auth/sessions", authHandler.GetSessions)

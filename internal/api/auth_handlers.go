@@ -294,6 +294,25 @@ func (h *AuthHandler) GetJWKS(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(jwks)
 }
 
+// GetToken returns the current access token in the response body.
+// This is required for client-side integrations (like Convex, Firebase) that need the raw JWT.
+// Security: This endpoint MUST be behind AuthMiddleware and strict CORS.
+func (h *AuthHandler) GetToken(w http.ResponseWriter, r *http.Request) {
+	// Middleware has already validated the session.
+	// We just need to retrieve the token string from the cookie to return it.
+	cookie, err := r.Cookie("access_token")
+	if err != nil {
+		// Should be impossible if middleware passed, but good to be safe
+		http.Error(w, "No access token found", http.StatusUnauthorized)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"token": cookie.Value,
+	})
+}
+
 // Me returns the strictly typed Session Rehydration data (Who Am I).
 // Security: Enforces strict Tenant Isolation via Middleware & Service Layer.
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
