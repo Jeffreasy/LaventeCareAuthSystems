@@ -29,6 +29,24 @@ func DynamicCorsMiddleware(q CorsConfigProvider) func(http.Handler) http.Handler
 				return
 			}
 
+			// 0. SYSTEM OVERRIDE: Allow Localhost for Development
+			// This MUST bypass Tenant/DB checks to ensure developers are never blocked by CORS
+			isLocalDev := origin == "http://localhost:4321" || origin == "http://localhost:3000"
+			if isLocalDev {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Tenant-ID, X-Requested-With")
+
+				if r.Method == http.MethodOptions {
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			// Preflight Handling independent of Tenant
 			if r.Method == http.MethodOptions {
 				w.Header().Set("Access-Control-Allow-Origin", origin) // Reflect
@@ -72,10 +90,7 @@ func DynamicCorsMiddleware(q CorsConfigProvider) func(http.Handler) http.Handler
 
 			// Check Origin
 			// allowed_origins is TEXT[] -> []string
-			// SYSTEM OVERRIDE: Allow Localhost for Development
-			isLocalDev := origin == "http://localhost:4321" || origin == "http://localhost:3000"
-
-			if isLocalDev || slices.Contains(config.AllowedOrigins, origin) {
+			if slices.Contains(config.AllowedOrigins, origin) {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 			} else {
