@@ -55,7 +55,7 @@ This system is built by the rules of the **Anti-Gravity Sentinel**. We assume ho
 - **Migrations:** Managed via SQL files to ensure schema version control.
 
 ### 4. Active Defense (`internal/api/middleware`)
-- **Rate Limiting:** Token bucket algorithm (5 req/s, burst 10) protects against brute force.
+- **Rate Limiting:** Token bucket algorithm (25 req/s, burst 50) protects against brute force while allowing dashboard usage.
 - **Tenant Isolation:** `TenantContext` middleware enforces `X-Tenant-ID` and tags telemetry.
 - **Strict Headers:** Requests without `Content-Type: application/json` are rejected immediately.
 
@@ -75,6 +75,9 @@ This system is built by the rules of the **Anti-Gravity Sentinel**. We assume ho
 ├── cmd/
 │   ├── api/                # Main HTTP API Entry point.
 │   ├── control/            # Operator CLI for tenant management.
+│   ├── emailworker/        # Email delivery worker.
+│   ├── keygen/             # Utility for generating keys.
+│   ├── migrate/            # Database migration tool.
 │   └── worker/             # Background Janitor service.
 ├── internal/
 │   ├── api/                # HTTP Handlers, Router, Middleware.

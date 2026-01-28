@@ -17,7 +17,7 @@ Strict Isolation (Multi-Tenancy)
 
 Context-Aware: Elke request wordt gevalideerd tegen een TenantID.
 
-Fortress Database: Gebruik van PostgreSQL met (geplande) Row Level Security (RLS) om datalekken tussen cliënten op hardwareniveau te voorkomen.
+Fortress Database: Gebruik van PostgreSQL met actieve Row Level Security (RLS) om datalekken tussen cliënten op hardwareniveau te voorkomen.
 
 Logical Separation: Data is strikt gescheiden via een memberships structuur, waardoor gebruikers veilig lid kunnen zijn van meerdere organisaties (tenants).
 

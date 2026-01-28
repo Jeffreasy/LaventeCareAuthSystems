@@ -98,14 +98,15 @@ Every query targeting tenant-specific data **MUST** include a `tenant_id` WHERE 
 - **Correct**: `WHERE user_id = $1 AND tenant_id = $2`
 - **Incorrect**: `WHERE user_id = $1` (This creates an IDOR vulnerability)
 
-### Future: Native Row Level Security (RLS)
-**Roadmap Target: Phase 50 (Q2 2026)**
+### 🔒 Row Level Security (Active)
+**Status: Implemented (Phase 35)**
 
-We **will** enable PostgreSQL Native Row Level Security (RLS) as a defense-in-depth measure. This ensures that even if application-level tenant filtering is bypassed due to a bug, the database itself enforces isolation at the row level.
+PostgreSQL Native Row Level Security (RLS) is **enabled** as a defense-in-depth measure.
 
-**Implementation Plan:**
-- Apply RLS policies to `memberships`, `refresh_tokens`, `invitations`, and all tenant-scoped resources.
-- Policies will validate `current_setting('app.tenant_id')` against row-level `tenant_id`.
-- Application sets session variable via `SET LOCAL app.tenant_id = $1` in transaction context.
+**Implementation Details:**
+- **Enabled Tables**: `memberships`, `refresh_tokens`.
+- **Exempt Tables**: `invitations` (Public lookup by hash required), `users` (Tenant-scoped via index).
+- **Mechanism**: Policies validate `current_setting('app.current_tenant')` against the row's `tenant_id`.
+- **Enforcement**: The application sets the session variable via `SET LOCAL app.current_tenant = $1` in every transaction context middleware.
 
-*This is not optional. Multi-tenancy at the application layer alone is insufficient for Zero Trust compliance.*
+*This ensures that even if application-level tenant filtering is bypassed, the database layer prevents cross-tenant data leakage.*

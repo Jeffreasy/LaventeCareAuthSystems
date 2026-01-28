@@ -32,6 +32,7 @@ Render will automatically detect the `render.yaml` file and show you:
 - **laventecare-db**: PostgreSQL 16 database (Starter plan, $7/month)
 - **laventecare-api**: Web Service (Auto-deployed from `main` branch)
 - **laventecare-worker**: Background Worker (Janitor service)
+- **laventecare-email-worker**: Background Worker (Email Gateway)
 
 **Review the configuration** and click **"Apply"**.
 
@@ -48,7 +49,11 @@ After deployment starts, you need to add secrets:
 | `APP_URL` | `https://laventecare-api.onrender.com` | Update with your Render URL |
 | `SENTRY_DSN` | *(optional)* | Only if using Sentry |
 
-3. Click **"Save Changes"** (triggers redeployment)
+3. **Email Worker Secrets**: Navigate to **laventecare-email-worker** and add:
+   - `TENANT_SECRET_KEY` (Generated via scripts)
+   - SMTP Credentials (`SMTP_HOST`, `SMTP_USER`, etc.) as defined in [Email Gateway Guide](./email_gateway.md).
+
+4. Click **"Save Changes"** (triggers redeployment)
 
 ### Step 4: Verify Deployment
 
@@ -106,7 +111,7 @@ If you prefer manual setup instead of the blueprint:
 5. **Health Check Path**: `/health`
 6. Click **"Create Web Service"**
 
-### 3. Deploy Worker Service
+### 3. Deploy Worker Service (Janitor)
 
 1. Dashboard → **"New+"** → **"Background Worker"**
 2. Connect same repository
@@ -124,6 +129,10 @@ If you prefer manual setup instead of the blueprint:
    ```
 
 5. Click **"Create Background Worker"**
+
+### 4. Deploy Email Worker
+
+See [Email Gateway Deployment Guide](./email_gateway.md) for detailed manual steps.
 
 ---
 
@@ -331,8 +340,9 @@ The Dockerfile already sets `chmod +x`. If still failing:
 |---------|------|------------|
 | PostgreSQL Database | Starter | $7 |
 | API Web Service | Starter | $7 |
-| Worker Background Service | Starter | $7 |
-| **Total** | | **$21** |
+| Janitor Worker | Starter | $7 |
+| Email Worker | Starter | $7 |
+| **Total** | | **$28** |
 
 **Scaling Options:**
 

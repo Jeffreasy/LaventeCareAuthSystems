@@ -11,6 +11,8 @@ RUN go build -o worker ./cmd/worker
 RUN go build -o control ./cmd/control
 # Build Migrate (NIEUW - voor auto-migrations)
 RUN go build -o migrate ./cmd/migrate
+# Build Email Worker
+RUN go build -o emailworker ./cmd/emailworker
 
 # Final stage
 FROM alpine:latest
@@ -23,6 +25,7 @@ COPY --from=builder /app/main .
 COPY --from=builder /app/worker .
 COPY --from=builder /app/control .
 COPY --from=builder /app/migrate .
+COPY --from=builder /app/emailworker .
 
 # Copy migrations directory (nodig voor migrate tool)
 COPY migrations ./migrations 

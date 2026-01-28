@@ -173,13 +173,13 @@ func CSRFProtection() func(http.Handler) http.Handler {
 
 **Apply to all endpoints:**
 
+**Current Implementation:** Global Rate Limit (Token Bucket).
+
 | Endpoint Pattern | Limit | Window | Reason |
 |-----------------|-------|--------|--------|
-| `/auth/login` | 5 attempts | 15 min | Prevent brute-force |
-| `/auth/mfa/verify` | 3 attempts | 5 min | Prevent code grinding |
-| `/auth/refresh` | 10 requests | 1 min | Prevent token abuse |
-| `/admin/*` | 100 requests | 1 min | Prevent data scraping |
-| `/iot/telemetry` | 1000 requests | 1 min | IoT device bursts |
+| **Global API** | **25 req/s** | **Burst 50** | General DoS Protection |
+
+> **Note:** Granular per-endpoint limits (e.g., stricter limits for login/MFA) are planned for Phase 40. Current protection is applied globally via middleware.
 
 ```go
 import "github.com/ulule/limiter/v3"
@@ -237,19 +237,19 @@ if err != nil {
 
 | Method | Endpoint | Description | Headers Required | Rate Limit |
 |--------|----------|-------------|------------------|------------|
-| `POST` | `/api/v1/auth/register` | User registration | `X-Tenant-ID` | 5/15min |
-| `POST` | `/api/v1/auth/login` | User login | `X-Tenant-ID` | 5/15min |
-| `POST` | `/api/v1/auth/logout` | Logout (clears cookies) | `X-Tenant-ID` | 10/1min |
-| `POST` | `/api/v1/auth/refresh` | Refresh access token | None (uses cookie) | 10/1min |
-| `POST` | `/api/v1/auth/password/forgot` | Request password reset email | `X-Tenant-ID` | 3/1hour |
-| `POST` | `/api/v1/auth/password/reset` | Complete password reset with token | None | 3/1hour |
-| `POST` | `/api/v1/auth/email/resend` | Resend verification email | `X-Tenant-ID` | 3/1hour |
-| `POST` | `/api/v1/auth/email/verify` | Verify email with token | None | 5/1hour |
-| `POST` | `/api/v1/auth/mfa/verify` | Verify MFA code | `X-Tenant-ID` | 3/5min |
-| `POST` | `/api/v1/auth/mfa/backup` | Verify via Backup Code | `X-Tenant-ID` | 3/5min |
-| `GET` | `/api/v1/tenants/{slug}` | Get tenant info by slug | None | 100/1min |
-| `GET` | `/.well-known/openid-configuration` | OIDC config | None | 100/1min |
-| `GET` | `/.well-known/jwks.json` | Public keys (JWKS) | None | 100/1min |
+| `POST` | `/api/v1/auth/register` | User registration | `X-Tenant-ID` | Global (25/s) |
+| `POST` | `/api/v1/auth/login` | User login | `X-Tenant-ID` | Global (25/s) |
+| `POST` | `/api/v1/auth/logout` | Logout (clears cookies) | `X-Tenant-ID` | Global (25/s) |
+| `POST` | `/api/v1/auth/refresh` | Refresh access token | None (uses cookie) | Global (25/s) |
+| `POST` | `/api/v1/auth/password/forgot` | Request password reset email | `X-Tenant-ID` | Global (25/s) |
+| `POST` | `/api/v1/auth/password/reset` | Complete password reset with token | None | Global (25/s) |
+| `POST` | `/api/v1/auth/email/resend` | Resend verification email | `X-Tenant-ID` | Global (25/s) |
+| `POST` | `/api/v1/auth/email/verify` | Verify email with token | None | Global (25/s) |
+| `POST` | `/api/v1/auth/mfa/verify` | Verify MFA code | `X-Tenant-ID` | Global (25/s) |
+| `POST` | `/api/v1/auth/mfa/backup` | Verify via Backup Code | `X-Tenant-ID` | Global (25/s) |
+| `GET` | `/api/v1/tenants/{slug}` | Get tenant info by slug | None | Global (25/s) |
+| `GET` | `/.well-known/openid-configuration` | OIDC config | None | Global (25/s) |
+| `GET` | `/.well-known/jwks.json` | Public keys (JWKS) | None | Global (25/s) |
 
 ### Protected Endpoints (Require Authentication)
 

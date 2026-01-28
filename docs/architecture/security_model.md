@@ -29,14 +29,16 @@ We use **JWT (HS256)** with a **Dual-Token System** (Access + Refresh) to balanc
 - **Lifespan**: Long (e.g., 7-30 days).
 - **Storage**: `refresh_tokens` table (Hashed).
 - **Rotation**: Refresh tokens are rotated on use. Old tokens are invalidated to prevent replay attacks (Reuse Detection).
+- **Grace Period**: A 10-second grace period allows concurrent requests (e.g., race conditions from aggressive UI frontends) to fail gracefully without triggering the Nuclear Option.
 
 ---
 
 ## ⚠️ Active Defense & Anti-Gravity Measures
 
 ### Active Defense Layers
-- **Rate Limiting**: IP-based Token Bucket (5 req/s) prevents brute-force.
-- **Tenant Context**: `X-Tenant-ID` header is cryptographically validated middleware-side layer before hitting business logic.
+
+- **Rate Limiting**: IP-based Token Bucket (**25 req/s**, Burst 50) prevents brute-force while allowing legitimate high-traffic (e.g., Dashboard).
+- **Tenant Context**: `X-Tenant-ID` header is syntactically validated (UUID) and enforced via Row Level Security (RLS) in the database transaction.
 - **Strict Headers**: `Content-Type: application/json` is mandatory.
 
 ### "Input is Toxic"

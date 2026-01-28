@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	customMiddleware "github.com/Jeffreasy/LaventeCareAuthSystems/internal/api/middleware"
+	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/storage"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +33,7 @@ func TestTenantContext_NoHeader_PublicEndpoint(t *testing.T) {
 
 	// Create test handler that verifies NO transaction is set
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tx := customMiddleware.GetTx(r.Context())
+		tx := storage.GetTx(r.Context())
 		assert.Nil(t, tx, "Transaction should be nil for requests without X-Tenant-ID header")
 		w.WriteHeader(http.StatusOK)
 	})
@@ -78,7 +79,7 @@ func TestTenantContext_ValidTenant_SetsSessionVariable(t *testing.T) {
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify transaction is available
-		tx := customMiddleware.GetTx(r.Context())
+		tx := storage.GetTx(r.Context())
 		require.NotNil(t, tx, "Transaction should be set for requests with X-Tenant-ID")
 
 		// Verify session variable is set
@@ -113,7 +114,7 @@ func TestTenantContext_ValidTenant_CommitsOnSuccess(t *testing.T) {
 	middleware := customMiddleware.TenantContext(pool)
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tx := customMiddleware.GetTx(r.Context())
+		tx := storage.GetTx(r.Context())
 		require.NotNil(t, tx)
 
 		// Insert a row in the transaction
@@ -155,7 +156,7 @@ func TestTenantContext_HandlerError_RollsBack(t *testing.T) {
 	middleware := customMiddleware.TenantContext(pool)
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tx := customMiddleware.GetTx(r.Context())
+		tx := storage.GetTx(r.Context())
 		require.NotNil(t, tx)
 
 		// Insert a row
@@ -185,7 +186,7 @@ func TestTenantContext_HandlerError_RollsBack(t *testing.T) {
 
 func TestGetTx_ReturnsNilWhenNoTransaction(t *testing.T) {
 	ctx := context.Background()
-	tx := customMiddleware.GetTx(ctx)
+	tx := storage.GetTx(ctx)
 	assert.Nil(t, tx)
 }
 
@@ -199,7 +200,7 @@ func TestGetTx_ReturnsTransactionWhenSet(t *testing.T) {
 	var capturedTx interface{}
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tx := customMiddleware.GetTx(r.Context())
+		tx := storage.GetTx(r.Context())
 		capturedTx = tx
 		w.WriteHeader(http.StatusOK)
 	})

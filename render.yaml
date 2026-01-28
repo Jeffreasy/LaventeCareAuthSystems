@@ -59,3 +59,35 @@ services:
           name: laventecare-db
           property: connectionString
     autoDeploy: true
+
+  # Email Gateway Worker
+  - type: worker
+    name: laventecare-email-worker
+    env: docker
+    region: frankfurt
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: ./emailworker
+    branch: main
+    numInstances: 1
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: laventecare-db
+          property: connectionString
+      - key: TENANT_SECRET_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS_ENCRYPTED
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+    autoDeploy: true

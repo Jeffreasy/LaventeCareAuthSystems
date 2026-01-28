@@ -47,7 +47,7 @@ The application is configured via Environment Variables. In production, these **
 | :--- | :--- | :--- | :--- |
 | `APP_ENV` | Environment mode (`development`/`production`) | `development` | ⚠️ HIGH |
 | `PORT` | HTTP Server Port | `8080` | LOW |
-| `DATABASE_URL` | PostgreSQL Connection String | `postgres://user:password@localhost:5432/...` | 🚨 CRITICAL |
+| `DATABASE_URL` | PostgreSQL Connection String | `postgres://user:password@localhost:5488/...` | 🚨 CRITICAL |
 | `JWT_SECRET` | 32+ char random string for signing tokens | `super-secret...` | 🚨 CRITICAL |
 | `SENTRY_DSN` | Sentry Project DSN for telemetry | (empty) | HIGH |
 | `ALLOW_PUBLIC_REGISTRATION` | Enable/Disable public sign-ups | `true` | HIGH |
@@ -89,9 +89,9 @@ We use `docker-compose.yml` to orchestrate dependencies.
 
 - **Service: `db`**
     - **Image**: `postgres:16-alpine`
-    - **Port**: `5432` exposed locally.
+    - **Port**: `5488:5432` (Host:Container). Local connection string should use port **5488**.
     - **Persistence**: Named volume `postgres_data`.
-    - **Init**: Auto-seed via `migrations/001_init_schema.up.sql`.
+    - **Migrations**: Handled automatically by the `api` service on startup (via `docker-entrypoint.sh`).
 
 To nuke the database and start fresh:
 ```bash
