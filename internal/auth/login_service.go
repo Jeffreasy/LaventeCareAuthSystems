@@ -37,6 +37,15 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*LoginResult
 		return nil, ErrTenantRequired
 	}
 
+	// 1.5 Validate Tenant Exists (Prevent FK Violations)
+	// Phase 35 Hardening: Ensure the tenant ID is valid before lookup
+	_, err := s.queries.GetTenantByID(ctx, pgtype.UUID{Bytes: input.TenantID, Valid: true})
+	if err != nil {
+		// Log internal warning for debugging
+		// But return generic error or ErrTenantRequired to client
+		return nil, ErrTenantRequired
+	}
+
 	user, err := s.queries.GetUserByEmail(ctx, db.GetUserByEmailParams{
 		Email:    input.Email,
 		TenantID: pgtype.UUID{Bytes: input.TenantID, Valid: true},
