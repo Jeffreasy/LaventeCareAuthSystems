@@ -163,23 +163,24 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// ✅ SECURE: Set HttpOnly cookies (XSS protection)
 	// Tokens are NEVER exposed to JavaScript
+	// CONFIG: Relaxed for Localhost Development (HTTP)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
 		Value:    result.AccessToken,
 		Path:     "/",
 		MaxAge:   900, // 15 min
 		HttpOnly: true,
-		Secure:   true, // Requires HTTPS
-		SameSite: http.SameSiteStrictMode,
+		Secure:   false,                // Changed to False for Localhost (HTTP)
+		SameSite: http.SameSiteLaxMode, // Changed to Lax for Redirects
 	})
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    result.RefreshToken,
-		Path:     "/",    // ✅ Changed from /api/v1/auth to / for Astro Middleware visibility
+		Path:     "/",
 		MaxAge:   604800, // 7 days
 		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
+		Secure:   false, // Changed to False for Localhost (HTTP)
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	// ✅ Return user data only (NO tokens in JSON)
@@ -221,17 +222,17 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   900, // 15 min
 		HttpOnly: true,
-		Secure:   true, // TODO: Config driven
-		SameSite: http.SameSiteStrictMode,
+		Secure:   false, // Relaxed
+		SameSite: http.SameSiteLaxMode,
 	})
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    result.RefreshToken,
-		Path:     "/",    // ✅ Changed to / for consistency
+		Path:     "/",
 		MaxAge:   604800, // 7 days
 		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
+		Secure:   false, // Relaxed
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	// 5. Return Access Token (for memory client)
