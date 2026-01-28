@@ -60,8 +60,8 @@ func TenantContext(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 			// Handlers must be idempotent and handle rollbacks properly.
 			err = storage.WithTenantContext(ctx, pool, tenantUUID, func(tx pgx.Tx) error {
 				// Store the transaction in context for handlers to use
-				// Handlers can access via: middleware.GetTx(ctx)
-				ctxWithTx := context.WithValue(ctx, txKey, tx)
+				// Handlers can access via: storage.GetTx(ctx)
+				ctxWithTx := context.WithValue(ctx, storage.TxKey, tx)
 
 				// Create a custom ResponseWriter to capture errors
 				rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
@@ -84,25 +84,6 @@ func TenantContext(pool *pgxpool.Pool) func(http.Handler) http.Handler {
 			}
 		})
 	}
-}
-
-// txKey is the context key for storing the database transaction
-type ctxKey string
-
-const txKey ctxKey = "db_tx"
-
-// GetTx retrieves the database transaction from context.
-// Returns nil if no transaction is active (e.g., public endpoints without tenant context).
-func GetTx(ctx context.Context) pgx.Tx {
-	val := ctx.Value(txKey)
-	if val == nil {
-		return nil
-	}
-	tx, ok := val.(pgx.Tx)
-	if !ok {
-		return nil
-	}
-	return tx
 }
 
 // responseWriter wraps http.ResponseWriter to capture status codes

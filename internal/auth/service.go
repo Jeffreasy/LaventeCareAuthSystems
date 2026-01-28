@@ -7,6 +7,7 @@ import (
 
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/audit"
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/notify"
+	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/storage"
 	"github.com/Jeffreasy/LaventeCareAuthSystems/internal/storage/db"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -75,7 +76,7 @@ func (s *AuthService) resolveTenantAndRole(ctx context.Context, user db.User) (u
 	tenantID = uuid.UUID(user.TenantID.Bytes)
 
 	// Fetch role for this tenant
-	membership, err := s.queries.GetMembership(ctx, db.GetMembershipParams{
+	membership, err := s.txQueries(ctx).GetMembership(ctx, db.GetMembershipParams{
 		UserID:   pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
 		TenantID: pgtype.UUID{Bytes: tenantID, Valid: true},
 	})
@@ -117,4 +118,14 @@ func (s *AuthService) WithRLS(ctx context.Context, tenantID uuid.UUID, fn func(q
 // GetJWKS returns the JSON Web Key Set for the OIDC provider.
 func (s *AuthService) GetJWKS() (*JWKS, error) {
 	return s.tokenProvider.GetJWKS()
+}
+
+// txQueries returns a queries instance that uses the transaction from context if available.
+// This is critical for RLS enforcement, as the transaction holds the 'app.current_tenant' setting.
+func (s *AuthService) txQueries(ctx context.Context) *db.Queries {
+	tx := storage.GetTx(ctx)
+	if tx != nil {
+		return s.queries.WithTx(tx)
+	}
+	return s.queries
 }

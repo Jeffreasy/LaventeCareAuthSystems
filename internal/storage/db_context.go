@@ -98,3 +98,22 @@ func ExecInTenantContext(ctx context.Context, pool *pgxpool.Pool, tenantID uuid.
 		return err
 	})
 }
+
+// ctxKey is the context key for storing the database transaction
+type ctxKey string
+
+const TxKey ctxKey = "db_tx"
+
+// GetTx retrieves the database transaction from context.
+// Returns nil if no transaction is active.
+func GetTx(ctx context.Context) pgx.Tx {
+	val := ctx.Value(TxKey)
+	if val == nil {
+		return nil
+	}
+	tx, ok := val.(pgx.Tx)
+	if !ok {
+		return nil
+	}
+	return tx
+}

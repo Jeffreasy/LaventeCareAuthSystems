@@ -39,14 +39,14 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*LoginResult
 
 	// 1.5 Validate Tenant Exists (Prevent FK Violations)
 	// Phase 35 Hardening: Ensure the tenant ID is valid before lookup
-	_, err := s.queries.GetTenantByID(ctx, pgtype.UUID{Bytes: input.TenantID, Valid: true})
+	_, err := s.txQueries(ctx).GetTenantByID(ctx, pgtype.UUID{Bytes: input.TenantID, Valid: true})
 	if err != nil {
 		// Log internal warning for debugging
 		// But return generic error or ErrTenantRequired to client
 		return nil, ErrTenantRequired
 	}
 
-	user, err := s.queries.GetUserByEmail(ctx, db.GetUserByEmailParams{
+	user, err := s.txQueries(ctx).GetUserByEmail(ctx, db.GetUserByEmailParams{
 		Email:    input.Email,
 		TenantID: pgtype.UUID{Bytes: input.TenantID, Valid: true},
 	})
@@ -103,7 +103,7 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*LoginResult
 	// Expires: 7 Days (Configurable?)
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
-	_, err = s.queries.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
+	_, err = s.txQueries(ctx).CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
 		UserID:        pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
 		TokenHash:     refreshTokenHash,
 		ParentTokenID: pgtype.UUID{Valid: false},                   // Root of family
@@ -151,7 +151,7 @@ func (s *AuthService) VerifyLoginBackupCode(ctx context.Context, preAuthToken st
 	hashed := hashToken(code)
 
 	// Check DB
-	backupCode, err := s.queries.GetBackupCode(ctx, db.GetBackupCodeParams{
+	backupCode, err := s.txQueries(ctx).GetBackupCode(ctx, db.GetBackupCodeParams{
 		UserID:   pgtype.UUID{Bytes: userID, Valid: true},
 		CodeHash: hashed,
 	})
@@ -160,12 +160,12 @@ func (s *AuthService) VerifyLoginBackupCode(ctx context.Context, preAuthToken st
 	}
 
 	// Consume it
-	if err := s.queries.ConsumeBackupCode(ctx, backupCode.ID); err != nil {
+	if err := s.txQueries(ctx).ConsumeBackupCode(ctx, backupCode.ID); err != nil {
 		return nil, err
 	}
 
 	// Issue Tokens (Success)
-	user, _ := s.queries.GetUserByID(ctx, db.GetUserByIDParams{
+	user, _ := s.txQueries(ctx).GetUserByID(ctx, db.GetUserByIDParams{
 		ID:       pgtype.UUID{Bytes: userID, Valid: true},
 		TenantID: pgtype.UUID{Bytes: tenantID, Valid: true},
 	})
@@ -188,7 +188,7 @@ func (s *AuthService) VerifyLoginBackupCode(ctx context.Context, preAuthToken st
 	refreshTokenHash := hashToken(refreshToken)
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
-	_, err = s.queries.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
+	_, err = s.txQueries(ctx).CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
 		UserID:        pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
 		TokenHash:     refreshTokenHash,
 		ParentTokenID: pgtype.UUID{Valid: false},
@@ -234,7 +234,7 @@ func (s *AuthService) VerifyLoginMFA(ctx context.Context, preAuthToken string, c
 	userID := claims.UserID
 
 	// 2. Lookup User
-	user, err := s.queries.GetUserByID(ctx, db.GetUserByIDParams{
+	user, err := s.txQueries(ctx).GetUserByID(ctx, db.GetUserByIDParams{
 		ID:       pgtype.UUID{Bytes: userID, Valid: true},
 		TenantID: pgtype.UUID{Bytes: tenantID, Valid: true},
 	})
@@ -270,7 +270,7 @@ func (s *AuthService) VerifyLoginMFA(ctx context.Context, preAuthToken string, c
 
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
-	_, err = s.queries.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
+	_, err = s.txQueries(ctx).CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
 		UserID:        pgtype.UUID{Bytes: user.ID.Bytes, Valid: true},
 		TokenHash:     refreshTokenHash,
 		ParentTokenID: pgtype.UUID{Valid: false},
