@@ -42,6 +42,9 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 	limiter := customMiddleware.NewIPRateLimiter(5, 10) // 5 RPS, Burst 10
 	r.Use(limiter.Middleware)
 
+	// PHASE 99: CORS - Applied globally to handle Preflight (OPTIONS)
+	r.Use(customMiddleware.DynamicCorsMiddleware(queries))
+
 	// PHASE 50 RLS: TenantContext now requires pool for SET LOCAL transaction wrapping
 	r.Use(customMiddleware.TenantContext(pool))
 	// CSRF moved to protected routes only (public auth endpoints don't need it)

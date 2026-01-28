@@ -72,7 +72,10 @@ func DynamicCorsMiddleware(q CorsConfigProvider) func(http.Handler) http.Handler
 
 			// Check Origin
 			// allowed_origins is TEXT[] -> []string
-			if slices.Contains(config.AllowedOrigins, origin) {
+			// SYSTEM OVERRIDE: Allow Localhost for Development
+			isLocalDev := origin == "http://localhost:4321" || origin == "http://localhost:3000"
+
+			if isLocalDev || slices.Contains(config.AllowedOrigins, origin) {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
 			} else {
