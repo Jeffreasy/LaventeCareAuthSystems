@@ -42,6 +42,12 @@ type RegisterRequest struct {
 }
 
 func (req *RegisterRequest) Validate() error {
+	if req.Token != "" {
+		// If token is present, ensure it has reasonable length/format
+		if len(req.Token) < 10 {
+			return fmt.Errorf("invalid invite token format")
+		}
+	}
 	if _, err := mail.ParseAddress(req.Email); err != nil {
 		return fmt.Errorf("invalid email format")
 	}
@@ -58,14 +64,14 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	// Helpers now enforce Anti-Gravity Law 1 (Content-Type + DisallowUnknownFields)
 	if err := helpers.DecodeJSON(r, &req); err != nil {
-		slog.Warn("Register: Invalid Request", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		slog.Warn("Register: Invalid Request Body", "error", err)
+		http.Error(w, "Invalid request body format", http.StatusBadRequest)
 		return
 	}
 
 	if err := req.Validate(); err != nil {
 		slog.Warn("Register: Validation Failed", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Validation failed: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -119,14 +125,14 @@ func (req *LoginRequest) Validate() error {
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := helpers.DecodeJSON(r, &req); err != nil {
-		slog.Warn("Login: Invalid Request", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		slog.Warn("Login: Invalid Request Body", "ip", helpers.GetRealIP(r), "error", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		slog.Warn("Login: Validation Failed", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		slog.Warn("Login: Validation Failed", "ip", helpers.GetRealIP(r), "error", err)
+		http.Error(w, "Validation failed", http.StatusBadRequest)
 		return
 	}
 
@@ -169,7 +175,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    result.RefreshToken,
-		Path:     "/api/v1/auth",
+		Path:     "/",    // ✅ Changed from /api/v1/auth to / for Astro Middleware visibility
 		MaxAge:   604800, // 7 days
 		HttpOnly: true,
 		Secure:   true,
@@ -221,7 +227,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refresh_token",
 		Value:    result.RefreshToken,
-		Path:     "/api/v1/auth",
+		Path:     "/",    // ✅ Changed to / for consistency
 		MaxAge:   604800, // 7 days
 		HttpOnly: true,
 		Secure:   true,

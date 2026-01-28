@@ -1,2 +1,8 @@
 # Added by generate-secrets.ps1
 .env.local
+
+# Binaries
+*.exe
+*.dll
+test_output.txt
+.DS_Store

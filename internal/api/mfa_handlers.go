@@ -20,7 +20,7 @@ func (h *AuthHandler) VerifyMFA(w http.ResponseWriter, r *http.Request) {
 	var req VerifyMFARequest
 	if err := helpers.DecodeJSON(r, &req); err != nil {
 		slog.Warn("MFA Verify: Invalid JSON", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid request format", http.StatusBadRequest)
 		return
 	}
 
@@ -55,7 +55,7 @@ func (h *AuthHandler) VerifyBackupCode(w http.ResponseWriter, r *http.Request) {
 	var req VerifyMFARequest // Re-use struct, code is the backup code
 	if err := helpers.DecodeJSON(r, &req); err != nil {
 		slog.Warn("Backup Code Verify: Invalid JSON", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid request format", http.StatusBadRequest)
 		return
 	}
 
@@ -124,7 +124,7 @@ func (h *AuthHandler) ActivateMFA(w http.ResponseWriter, r *http.Request) {
 	var req ActivateMFARequest
 	if err := helpers.DecodeJSON(r, &req); err != nil {
 		slog.Warn("Activate MFA: Invalid JSON", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid request format", http.StatusBadRequest)
 		return
 	}
 

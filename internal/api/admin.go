@@ -91,7 +91,7 @@ func (h *AuthHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 
 	var req UpdateRoleRequest
 	if err := helpers.DecodeJSON(r, &req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid request format", http.StatusBadRequest)
 		return
 	}
 

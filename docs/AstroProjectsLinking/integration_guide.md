@@ -55,7 +55,7 @@ The backend uses a **Dual-Token** system for maximum security:
      - **Headers:**
        ```
        Set-Cookie: access_token=<jwt>; HttpOnly; Secure; SameSite=Strict; MaxAge=900
-       Set-Cookie: refresh_token=<opaque>; HttpOnly; Secure; SameSite=Strict; MaxAge=604800; Path=/api/v1/auth
+       Set-Cookie: refresh_token=<opaque>; HttpOnly; Secure; SameSite=Strict; MaxAge=604800; Path=/
        ```
      - **JSON Body (tokens NOT included for XSS protection):**
        ```json
@@ -246,6 +246,7 @@ if err != nil {
 | `POST` | `/api/v1/auth/email/resend` | Resend verification email | `X-Tenant-ID` | 3/1hour |
 | `POST` | `/api/v1/auth/email/verify` | Verify email with token | None | 5/1hour |
 | `POST` | `/api/v1/auth/mfa/verify` | Verify MFA code | `X-Tenant-ID` | 3/5min |
+| `POST` | `/api/v1/auth/mfa/backup` | Verify via Backup Code | `X-Tenant-ID` | 3/5min |
 | `GET` | `/api/v1/tenants/{slug}` | Get tenant info by slug | None | 100/1min |
 | `GET` | `/.well-known/openid-configuration` | OIDC config | None | 100/1min |
 | `GET` | `/.well-known/jwks.json` | Public keys (JWKS) | None | 100/1min |
@@ -269,6 +270,7 @@ if err != nil {
 | Method | Endpoint | Description | Rate Limit |
 |--------|----------|-------------|------------|
 | `GET` | `/api/v1/admin/users` | List users in tenant | 100/1min |
+| `DELETE` | `/api/v1/admin/tenants` | Soft Delete Tenant | 1/1day |
 | `PATCH` | `/api/v1/admin/users/{userID}` | Update user role | 10/1min |
 | `DELETE` | `/api/v1/admin/users/{userID}` | Remove user | 10/1min |
 | `POST` | `/api/v1/admin/users/invite` | Send invitation email | 20/1hour |
@@ -405,9 +407,9 @@ export async function fetchProfile(): Promise<User> {
     throw new Error('Failed to fetch profile');
   }
 
-  const user = await res.json();
-  $user.set(user);
-  return user;
+  const data = await res.json();
+  $user.set(data.user); // ✅ Extract user from wrapper
+  return data.user;
 }
 ```
 
