@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
 
@@ -43,6 +44,7 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*LoginResult
 	if err != nil {
 		// Log internal warning for debugging
 		// But return generic error or ErrTenantRequired to client
+		slog.Warn("GetTenantByID Failed", "tenantID", input.TenantID, "error", err)
 		return nil, ErrTenantRequired
 	}
 
