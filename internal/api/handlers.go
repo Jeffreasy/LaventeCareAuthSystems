@@ -24,22 +24,30 @@ func NewAuthHandler(service *auth.AuthService, pool *pgxpool.Pool, logger *slog.
 }
 
 func (h *AuthHandler) clearCookies(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
+	// Must match existing attributes to overwrite/delete
+	accessCookie := &http.Cookie{
 		Name:     "access_token",
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		Secure:   true, // Should be config driven
-		SameSite: http.SameSiteStrictMode,
-	})
-	http.SetCookie(w, &http.Cookie{
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode,
+	}
+	if v := accessCookie.String(); v != "" {
+		w.Header().Add("Set-Cookie", v+"; Partitioned")
+	}
+
+	refreshCookie := &http.Cookie{
 		Name:     "refresh_token",
 		Value:    "",
-		Path:     "/api/v1/auth", // Match the path used in Login? Defaulting to / for now to be safe
+		Path:     "/", // Reset to root path to ensure we catch it
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
-	})
+		SameSite: http.SameSiteNoneMode,
+	}
+	if v := refreshCookie.String(); v != "" {
+		w.Header().Add("Set-Cookie", v+"; Partitioned")
+	}
 }

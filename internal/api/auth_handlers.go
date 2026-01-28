@@ -164,7 +164,8 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// ✅ SECURE: Set HttpOnly cookies (XSS protection)
 	// Tokens are NEVER exposed to JavaScript
 	// CONFIG: Cross-Origin Support (Localhost -> Render) requires SameSite=None; Secure
-	http.SetCookie(w, &http.Cookie{
+	// CHIPS: Add Partitioned attribute for 3rd party cookie support in modern browsers
+	accessCookie := &http.Cookie{
 		Name:     "access_token",
 		Value:    result.AccessToken,
 		Path:     "/",
@@ -172,8 +173,13 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   true,                  // Required for SameSite=None
 		SameSite: http.SameSiteNoneMode, // Required for Cross-Origin AJAX
-	})
-	http.SetCookie(w, &http.Cookie{
+	}
+	// Manual Set-Cookie to support Partitioned attribute (Go < 1.23 workaround)
+	if v := accessCookie.String(); v != "" {
+		w.Header().Add("Set-Cookie", v+"; Partitioned")
+	}
+
+	refreshCookie := &http.Cookie{
 		Name:     "refresh_token",
 		Value:    result.RefreshToken,
 		Path:     "/",
@@ -181,7 +187,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   true,                  // Required for SameSite=None
 		SameSite: http.SameSiteNoneMode, // Required for Cross-Origin AJAX
-	})
+	}
+	if v := refreshCookie.String(); v != "" {
+		w.Header().Add("Set-Cookie", v+"; Partitioned")
+	}
 
 	// ✅ Return user data only (NO tokens in JSON)
 	w.Header().Set("Content-Type", "application/json")
@@ -216,7 +225,8 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 4. Set New Cookies
-	http.SetCookie(w, &http.Cookie{
+	// CHIPS: Add Partitioned attribute
+	accessCookie := &http.Cookie{
 		Name:     "access_token",
 		Value:    result.AccessToken,
 		Path:     "/",
@@ -224,8 +234,12 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode,
-	})
-	http.SetCookie(w, &http.Cookie{
+	}
+	if v := accessCookie.String(); v != "" {
+		w.Header().Add("Set-Cookie", v+"; Partitioned")
+	}
+
+	refreshCookie := &http.Cookie{
 		Name:     "refresh_token",
 		Value:    result.RefreshToken,
 		Path:     "/",
@@ -233,7 +247,10 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode,
-	})
+	}
+	if v := refreshCookie.String(); v != "" {
+		w.Header().Add("Set-Cookie", v+"; Partitioned")
+	}
 
 	// 5. Return Access Token (for memory client)
 	w.Header().Set("Content-Type", "application/json")
