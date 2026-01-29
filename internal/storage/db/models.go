@@ -146,6 +146,10 @@ type Tenant struct {
 	MailConfig []byte
 	// Encryption key version for password rotation. Used by crypto.DecryptTenantSecretV().
 	MailConfigKeyVersion pgtype.Int4
+	Description          pgtype.Text
+	Category             pgtype.Text
+	IsFeatured           bool
+	LogoUrl              pgtype.Text
 }
 
 // Security barrier view that excludes mail_config. Use this for frontend/API queries.

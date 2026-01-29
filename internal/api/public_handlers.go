@@ -47,3 +47,56 @@ func (h *PublicHandler) GetTenantInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
+
+type ShowcaseTenant struct {
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	AppURL      string `json:"app_url"`
+	LogoURL     string `json:"logo_url"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
+}
+
+// GetShowcase returns a public list of featured tenants.
+func (h *PublicHandler) GetShowcase(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Anti-Gravity: Check DB
+	tenants, err := h.queries.ListShowcaseTenants(ctx)
+	if err != nil {
+		slog.Error("failed to list showcase tenants", "error", err)
+		http.Error(w, "Service Unavailable", http.StatusInternalServerError)
+		return
+	}
+
+	response := make([]ShowcaseTenant, len(tenants))
+	for i, t := range tenants {
+		// Handle NULLABLE fields safely
+		logo := ""
+		if t.LogoUrl.Valid {
+			logo = t.LogoUrl.String
+		}
+
+		desc := ""
+		if t.Description.Valid {
+			desc = t.Description.String
+		}
+
+		cat := "General"
+		if t.Category.Valid {
+			cat = t.Category.String
+		}
+
+		response[i] = ShowcaseTenant{
+			Name:        t.Name,
+			Slug:        string(t.Slug),
+			AppURL:      t.AppUrl,
+			LogoURL:     logo,
+			Description: desc,
+			Category:    cat,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}

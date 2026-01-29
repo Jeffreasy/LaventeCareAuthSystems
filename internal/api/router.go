@@ -104,6 +104,7 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 		// Public Tenant Lookup (Phase 27)
 		publicHandler := NewPublicHandler(queries)
 		r.Get("/tenants/{slug}", publicHandler.GetTenantInfo)
+		r.Get("/showcase", publicHandler.GetShowcase)
 
 		// Protected Routes
 		r.Group(func(r chi.Router) {
