@@ -84,7 +84,7 @@ Invalid request parameters
 | `/auth/mfa/verify` | POST | Public | `totp_code`, `session_token` | Complete MFA login |
 | `/auth/mfa/backup` | POST | Public | `backup_code`, `session_token` | Complete MFA via backup code |
 | `/tenants/{slug}` | GET | Public | - | Retrieve tenant public metadata |
-| `/showcase` | GET | Public | - | **List features tenants** (Showcase Hub) |
+| `/showcase` | GET | Public | - | **List featured tenants** (Rich Metadata: Tagline, Screenshots, Socials) |
 
 ### User Self-Service (Protected)
 *Requires `Authorization: Bearer <token>`*

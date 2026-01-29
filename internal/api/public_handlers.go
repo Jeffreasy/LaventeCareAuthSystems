@@ -49,12 +49,16 @@ func (h *PublicHandler) GetTenantInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 type ShowcaseTenant struct {
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	AppURL      string `json:"app_url"`
-	LogoURL     string `json:"logo_url"`
-	Description string `json:"description"`
-	Category    string `json:"category"`
+	Name        string            `json:"name"`
+	Slug        string            `json:"slug"`
+	AppURL      string            `json:"app_url"`
+	LogoURL     string            `json:"logo_url"`
+	Description string            `json:"description"`
+	Category    string            `json:"category"`
+	Tagline     string            `json:"tagline"`
+	Tags        []string          `json:"tags"`
+	GalleryURLs []string          `json:"gallery_urls"`
+	SocialLinks map[string]string `json:"social_links"`
 }
 
 // GetShowcase returns a public list of featured tenants.
@@ -94,7 +98,17 @@ func (h *PublicHandler) GetShowcase(w http.ResponseWriter, r *http.Request) {
 			LogoURL:     logo,
 			Description: desc,
 			Category:    cat,
+			Tagline:     t.Tagline.String,
+			Tags:        t.Tags,
+			GalleryURLs: t.GalleryUrls,
+			SocialLinks: make(map[string]string),
 		}
+
+		// Parse JSONB Social Links safely
+		if len(t.SocialLinks) > 0 {
+			_ = json.Unmarshal(t.SocialLinks, &response[i].SocialLinks)
+		}
+
 	}
 
 	w.Header().Set("Content-Type", "application/json")

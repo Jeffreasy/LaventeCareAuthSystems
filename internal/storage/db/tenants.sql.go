@@ -17,7 +17,7 @@ INSERT INTO tenants (
     name, slug, secret_key_hash, allowed_origins, redirect_urls, branding, settings, app_url
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8
-) RETURNING id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version, description, category, is_featured, logo_url
+) RETURNING id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version, description, category, is_featured, logo_url, tagline, tags, gallery_urls, social_links
 `
 
 type CreateTenantParams struct {
@@ -63,12 +63,16 @@ func (q *Queries) CreateTenant(ctx context.Context, arg CreateTenantParams) (Ten
 		&i.Category,
 		&i.IsFeatured,
 		&i.LogoUrl,
+		&i.Tagline,
+		&i.Tags,
+		&i.GalleryUrls,
+		&i.SocialLinks,
 	)
 	return i, err
 }
 
 const getTenantByID = `-- name: GetTenantByID :one
-SELECT id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version, description, category, is_featured, logo_url FROM tenants
+SELECT id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version, description, category, is_featured, logo_url, tagline, tags, gallery_urls, social_links FROM tenants
 WHERE id = $1 LIMIT 1
 `
 
@@ -95,12 +99,16 @@ func (q *Queries) GetTenantByID(ctx context.Context, id pgtype.UUID) (Tenant, er
 		&i.Category,
 		&i.IsFeatured,
 		&i.LogoUrl,
+		&i.Tagline,
+		&i.Tags,
+		&i.GalleryUrls,
+		&i.SocialLinks,
 	)
 	return i, err
 }
 
 const getTenantByPublicKey = `-- name: GetTenantByPublicKey :one
-SELECT id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version, description, category, is_featured, logo_url FROM tenants
+SELECT id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version, description, category, is_featured, logo_url, tagline, tags, gallery_urls, social_links FROM tenants
 WHERE public_key = $1 LIMIT 1
 `
 
@@ -127,12 +135,16 @@ func (q *Queries) GetTenantByPublicKey(ctx context.Context, publicKey pgtype.UUI
 		&i.Category,
 		&i.IsFeatured,
 		&i.LogoUrl,
+		&i.Tagline,
+		&i.Tags,
+		&i.GalleryUrls,
+		&i.SocialLinks,
 	)
 	return i, err
 }
 
 const getTenantBySlug = `-- name: GetTenantBySlug :one
-SELECT id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version, description, category, is_featured, logo_url FROM tenants
+SELECT id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version, description, category, is_featured, logo_url, tagline, tags, gallery_urls, social_links FROM tenants
 WHERE slug = $1 LIMIT 1
 `
 
@@ -159,6 +171,10 @@ func (q *Queries) GetTenantBySlug(ctx context.Context, slug string) (Tenant, err
 		&i.Category,
 		&i.IsFeatured,
 		&i.LogoUrl,
+		&i.Tagline,
+		&i.Tags,
+		&i.GalleryUrls,
+		&i.SocialLinks,
 	)
 	return i, err
 }
@@ -181,7 +197,7 @@ func (q *Queries) GetTenantConfig(ctx context.Context, id pgtype.UUID) (GetTenan
 }
 
 const listShowcaseTenants = `-- name: ListShowcaseTenants :many
-SELECT name, slug, app_url, logo_url, description, category 
+SELECT name, slug, app_url, logo_url, description, category, tagline, tags, gallery_urls, social_links
 FROM tenants 
 WHERE is_featured = true 
 ORDER BY name ASC
@@ -194,6 +210,10 @@ type ListShowcaseTenantsRow struct {
 	LogoUrl     pgtype.Text
 	Description pgtype.Text
 	Category    pgtype.Text
+	Tagline     pgtype.Text
+	Tags        []string
+	GalleryUrls []string
+	SocialLinks []byte
 }
 
 func (q *Queries) ListShowcaseTenants(ctx context.Context) ([]ListShowcaseTenantsRow, error) {
@@ -212,6 +232,10 @@ func (q *Queries) ListShowcaseTenants(ctx context.Context) ([]ListShowcaseTenant
 			&i.LogoUrl,
 			&i.Description,
 			&i.Category,
+			&i.Tagline,
+			&i.Tags,
+			&i.GalleryUrls,
+			&i.SocialLinks,
 		); err != nil {
 			return nil, err
 		}
@@ -233,7 +257,7 @@ SET
     updated_at = NOW(),
     app_url = $6
 WHERE id = $1
-RETURNING id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version, description, category, is_featured, logo_url
+RETURNING id, name, slug, public_key, secret_key_hash, allowed_origins, redirect_urls, branding, settings, is_active, created_at, updated_at, app_url, mail_config, mail_config_key_version, description, category, is_featured, logo_url, tagline, tags, gallery_urls, social_links
 `
 
 type UpdateTenantConfigParams struct {
@@ -275,6 +299,10 @@ func (q *Queries) UpdateTenantConfig(ctx context.Context, arg UpdateTenantConfig
 		&i.Category,
 		&i.IsFeatured,
 		&i.LogoUrl,
+		&i.Tagline,
+		&i.Tags,
+		&i.GalleryUrls,
+		&i.SocialLinks,
 	)
 	return i, err
 }

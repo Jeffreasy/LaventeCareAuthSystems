@@ -150,6 +150,14 @@ type Tenant struct {
 	Category             pgtype.Text
 	IsFeatured           bool
 	LogoUrl              pgtype.Text
+	// Short catchy description for cards
+	Tagline pgtype.Text
+	// Array of technology or category tags
+	Tags []string
+	// Array of screenshot URLs
+	GalleryUrls []string
+	// JSON object for external links (twitter, linkedin, etc)
+	SocialLinks []byte
 }
 
 // Security barrier view that excludes mail_config. Use this for frontend/API queries.

@@ -34,7 +34,8 @@ SELECT allowed_origins, app_url FROM tenants
 WHERE id = $1;
 
 -- name: ListShowcaseTenants :many
-SELECT name, slug, app_url, logo_url, description, category 
+SELECT name, slug, app_url, logo_url, description, category, tagline, tags, gallery_urls, social_links
 FROM tenants 
 WHERE is_featured = true 
 ORDER BY name ASC;
+
