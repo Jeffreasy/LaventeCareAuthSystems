@@ -138,6 +138,7 @@ func NewServer(pool *pgxpool.Pool, queries *db.Queries, authService *auth.AuthSe
 					// This logic would delete the tenant in the current context
 					w.Write([]byte("Tenant Deleted"))
 				})
+				r.Post("/tenants", authHandler.CreateTenant) // ✅ Tenant Creation (Audit Form)
 
 				// User Management (Phase 25)
 				r.Get("/users", authHandler.ListUsers)

@@ -103,6 +103,8 @@ Invalid request parameters
 | `/admin/users/invite` | POST | Invite new member to tenant |
 | `/admin/users/{userID}` | PATCH | Update member role |
 | `/admin/users/{userID}` | DELETE | Remove member from tenant |
+| `/admin/users/{userID}` | DELETE | Remove member from tenant |
+| `/admin/tenants` | POST | `name`, `slug`, `app_url` | **Create new tenant** (Audit Form) |
 | `/admin/tenants` | DELETE | - | **Danger**: Delete the current tenant context |
 | `/admin/audit-logs` | GET | View security audit logs |
 
