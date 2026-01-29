@@ -62,8 +62,15 @@ Invalid request parameters
 
 ## 📚 Endpoints & RBAC Requirements
 
-### Public Auth
+### Discovery & OIDC (Machine-to-Machine)
+| Endpoint | Method | Description |
+|:---------|:-------|:------------|
+| `/.well-known/openid-configuration` | GET | OIDC Discovery Document (for Convex/Auth.js) |
+| `/.well-known/jwks.json` | GET | JSON Web Key Set (Public Keys for validation) |
+
+### Public Access & Auth
 | Endpoint | Method | Role | Params | Description |
+
 |:---------|:-------|:-----|:-------|:------------|
 | `/health` | GET | Public | - | Liveness & DB connectivity check |
 | `/auth/register` | POST | Public | `email`, `password`, `full_name` | User registration |
@@ -77,6 +84,7 @@ Invalid request parameters
 | `/auth/mfa/verify` | POST | Public | `totp_code`, `session_token` | Complete MFA login |
 | `/auth/mfa/backup` | POST | Public | `backup_code`, `session_token` | Complete MFA via backup code |
 | `/tenants/{slug}` | GET | Public | - | Retrieve tenant public metadata |
+| `/showcase` | GET | Public | - | **List features tenants** (Showcase Hub) |
 
 ### User Self-Service (Protected)
 *Requires `Authorization: Bearer <token>`*
@@ -103,7 +111,7 @@ Invalid request parameters
 | `/admin/users/invite` | POST | Invite new member to tenant |
 | `/admin/users/{userID}` | PATCH | Update member role |
 | `/admin/users/{userID}` | DELETE | Remove member from tenant |
-| `/admin/users/{userID}` | DELETE | Remove member from tenant |
+
 | `/admin/tenants` | POST | `name`, `slug`, `app_url` | **Create new tenant** (Audit Form) |
 | `/admin/tenants` | DELETE | - | **Danger**: Delete the current tenant context |
 | `/admin/audit-logs` | GET | View security audit logs |
@@ -124,6 +132,13 @@ Invalid request parameters
 |:---------|:-------|:--------|:------------|
 | `/admin/cors-origins` | GET | - | Get allowed CORS origins |
 | `/admin/cors-origins` | PUT | `allowed_origins` (array) | Update allowed CORS origins |
+
+### IoT Gateway (ESP32 / Embedded)
+*Dedicated low-overhead endpoints for hardware telemetry.*
+
+| Endpoint | Method | Headers | Payload | Description |
+|:---------|:-------|:--------|:--------|:------------|
+| `/iot/telemetry` | POST | `X-ESP32-Secret` | `sensor_id`, `timestamp`, `data` (json) | Ingest sensor data & proxy to Convex |
 
 ---
 
