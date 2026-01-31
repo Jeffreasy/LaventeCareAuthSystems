@@ -30,8 +30,8 @@ func CSRFMiddleware(next http.Handler) http.Handler {
 				Value:    token,
 				Path:     "/",
 				HttpOnly: false, // Must be readable by JS to be sent in Header!
-				Secure:   true,  // Production only check recommended
-				SameSite: http.SameSiteStrictMode,
+				Secure:   true,  // Required for SameSite=None
+				SameSite: http.SameSiteNoneMode, // Required for Cross-Origin requests
 			})
 		} else {
 			token = cookie.Value
